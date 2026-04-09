@@ -1,0 +1,56 @@
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+  type Timestamp,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { PadelEvent, EventFormData } from '@/types';
+
+const eventsRef = collection(db, 'events');
+
+export async function createEvent(data: EventFormData, userId: string): Promise<string> {
+  const docRef = await addDoc(eventsRef, {
+    ...data,
+    date: new Date(data.date) as unknown as Timestamp,
+    currentRegistrations: 0,
+    createdBy: userId,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function updateEvent(eventId: string, data: Partial<EventFormData>): Promise<void> {
+  const updateData: Record<string, unknown> = { ...data, updatedAt: serverTimestamp() };
+  if (data.date) {
+    updateData.date = new Date(data.date);
+  }
+  await updateDoc(doc(db, 'events', eventId), updateData);
+}
+
+export async function deleteEvent(eventId: string): Promise<void> {
+  await deleteDoc(doc(db, 'events', eventId));
+}
+
+export async function getEvent(eventId: string): Promise<PadelEvent | null> {
+  const snap = await getDoc(doc(db, 'events', eventId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as PadelEvent;
+}
+
+export async function getEvents(staffView: boolean): Promise<PadelEvent[]> {
+  const q = staffView
+    ? query(eventsRef, orderBy('date', 'desc'))
+    : query(eventsRef, where('status', '==', 'published'), orderBy('date', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PadelEvent));
+}

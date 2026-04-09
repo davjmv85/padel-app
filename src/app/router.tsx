@@ -1,0 +1,67 @@
+import { createBrowserRouter } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { LoginPage } from '@/features/auth/pages/LoginPage';
+import { RegisterPage } from '@/features/auth/pages/RegisterPage';
+import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
+import { ProfilePage } from '@/features/auth/pages/ProfilePage';
+import { EventListPage } from '@/features/events/pages/EventListPage';
+import { EventDetailPage } from '@/features/events/pages/EventDetailPage';
+import { AdminEventListPage } from '@/features/events/pages/AdminEventListPage';
+import { AdminEventDetailPage } from '@/features/events/pages/AdminEventDetailPage';
+import { EventFormPage } from '@/features/events/pages/EventFormPage';
+import { AdminDashboardPage } from '@/features/events/pages/AdminDashboardPage';
+import { MyRegistrationsPage } from '@/features/registrations/pages/MyRegistrationsPage';
+import { RankingPage } from '@/features/ranking/pages/RankingPage';
+import { CollaboratorsPage } from '@/features/collaborators/pages/CollaboratorsPage';
+
+export const router = createBrowserRouter([
+  // Public routes
+  { path: '/login', element: <LoginPage /> },
+  { path: '/register', element: <RegisterPage /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+
+  // Player routes
+  {
+    element: (
+      <ProtectedRoute>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: '/', element: <EventListPage /> },
+      { path: '/events/:eventId', element: <EventDetailPage /> },
+      { path: '/my-registrations', element: <MyRegistrationsPage /> },
+      { path: '/ranking', element: <RankingPage /> },
+      { path: '/profile', element: <ProfilePage /> },
+    ],
+  },
+
+  // Admin/Collaborator routes
+  {
+    element: (
+      <ProtectedRoute allowedRoles={['admin', 'collaborator']}>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: '/admin', element: <AdminDashboardPage /> },
+      { path: '/admin/events', element: <AdminEventListPage /> },
+      { path: '/admin/events/new', element: <EventFormPage /> },
+      { path: '/admin/events/:eventId', element: <AdminEventDetailPage /> },
+      { path: '/admin/events/:eventId/edit', element: <EventFormPage /> },
+    ],
+  },
+
+  // Admin only
+  {
+    element: (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: '/admin/collaborators', element: <CollaboratorsPage /> },
+    ],
+  },
+]);
