@@ -16,7 +16,10 @@ export function EventListPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getEvents(false).then(setEvents).finally(() => setLoading(false));
+    getEvents(false)
+      .then(setEvents)
+      .catch((err) => console.error('Error loading events:', err))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <Spinner />;

@@ -15,3 +15,76 @@
     @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-900 dark:text-gray-100;
   }
 }
+
+/* Padel court background - half court lines */
+.padel-court-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Horizontal line - full width */
+.padel-court-bg::before {
+  content: '';
+  position: absolute;
+  top: 65%;
+  left: 0;
+  right: 0;
+  height: 5px;
+}
+
+/* Vertical line - from horizontal down to bottom */
+.padel-court-bg::after {
+  content: '';
+  position: absolute;
+  top: 65.7%;
+  left: 50%;
+  width: 5px;
+  bottom: 0;
+}
+
+.padel-court-bg::before,
+.padel-court-bg::after {
+  background: #101828;
+}
+
+.dark .padel-court-bg::before,
+.dark .padel-court-bg::after {
+  opacity: .8;
+  background: white;
+}
+
+/* Padel ball */
+.padel-ball {
+  position: absolute;
+  bottom: 18%;
+  right: 30%;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #e8d44d, #c9b422);
+  box-shadow:
+    inset -2px -2px 4px rgba(0,0,0,0.2),
+    inset 2px 2px 4px rgba(255,255,255,0.3);
+  opacity: 0.15;
+}
+
+/* Ball seam line */
+.padel-ball::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 14px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.5);
+  border-radius: 50%;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  transform: rotate(-30deg);
+}
+
+.dark .padel-ball {
+  opacity: 0.8;
+}

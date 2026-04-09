@@ -20,7 +20,7 @@ const eventsRef = collection(db, 'events');
 export async function createEvent(data: EventFormData, userId: string): Promise<string> {
   const docRef = await addDoc(eventsRef, {
     ...data,
-    date: new Date(data.date) as unknown as Timestamp,
+    date: new Date(data.date + 'T12:00:00') as unknown as Timestamp,
     currentRegistrations: 0,
     createdBy: userId,
     createdAt: serverTimestamp(),
@@ -32,7 +32,7 @@ export async function createEvent(data: EventFormData, userId: string): Promise<
 export async function updateEvent(eventId: string, data: Partial<EventFormData>): Promise<void> {
   const updateData: Record<string, unknown> = { ...data, updatedAt: serverTimestamp() };
   if (data.date) {
-    updateData.date = new Date(data.date);
+    updateData.date = new Date(data.date + 'T12:00:00');
   }
   await updateDoc(doc(db, 'events', eventId), updateData);
 }
@@ -48,9 +48,18 @@ export async function getEvent(eventId: string): Promise<PadelEvent | null> {
 }
 
 export async function getEvents(staffView: boolean): Promise<PadelEvent[]> {
-  const q = staffView
-    ? query(eventsRef, orderBy('date', 'desc'))
-    : query(eventsRef, where('status', '==', 'published'), orderBy('date', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PadelEvent));
+  try {
+    const q = staffView
+      ? query(eventsRef, orderBy('date', 'desc'))
+      : query(eventsRef, where('status', '==', 'published'), orderBy('date', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PadelEvent));
+  } catch {
+    // Fallback if composite index is not ready yet
+    const q = staffView
+      ? query(eventsRef)
+      : query(eventsRef, where('status', '==', 'published'));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PadelEvent));
+  }
 }

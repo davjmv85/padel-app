@@ -51,13 +51,13 @@ export function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#101828]">
       {/* Mobile header */}
       <div className="lg:hidden flex items-center justify-between bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100">
           <Menu className="h-6 w-6" />
         </button>
-        <span className="font-bold text-lg text-blue-600">Padel App</span>
+        <span className="font-bold text-lg text-blue-800/30">Padel App</span>
         <div className="w-10" />
       </div>
 
@@ -89,8 +89,11 @@ export function AppLayout() {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 lg:ml-64">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className="flex-1 lg:ml-64 relative min-h-screen">
+          <div className="padel-court-bg">
+            <div className="padel-ball" />
+          </div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <Outlet />
           </div>
         </main>
