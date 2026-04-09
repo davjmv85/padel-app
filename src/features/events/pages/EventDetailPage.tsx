@@ -97,46 +97,46 @@ export function EventDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 mb-6">
-            <div className="flex items-center gap-3 text-gray-600">
-              <Calendar className="h-5 w-5 text-gray-400" />
+            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+              <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               <div>
-                <p className="text-sm text-gray-400">Fecha y hora</p>
-                <p className="font-medium text-gray-900">
+                <p className="text-sm text-gray-400 dark:text-gray-500">Fecha y hora</p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">
                   {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <MapPin className="h-5 w-5 text-gray-400" />
+            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+              <MapPin className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               <div>
-                <p className="text-sm text-gray-400">Lugar</p>
-                <p className="font-medium text-gray-900">{event.location}</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Lugar</p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">{event.location}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <Users className="h-5 w-5 text-gray-400" />
+            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+              <Users className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               <div>
-                <p className="text-sm text-gray-400">Inscriptos</p>
-                <p className="font-medium text-gray-900">
+                <p className="text-sm text-gray-400 dark:text-gray-500">Inscriptos</p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">
                   {event.currentRegistrations}/{event.maxCapacity}
-                  {spotsLeft > 0 && <span className="text-green-600 ml-2">({spotsLeft} disponibles)</span>}
-                  {isFull && <span className="text-red-600 ml-2">(Completo)</span>}
+                  {spotsLeft > 0 && <span className="text-green-600 dark:text-green-400 ml-2">({spotsLeft} disponibles)</span>}
+                  {isFull && <span className="text-red-600 dark:text-red-400 ml-2">(Completo)</span>}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <DollarSign className="h-5 w-5 text-gray-400" />
+            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+              <DollarSign className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               <div>
-                <p className="text-sm text-gray-400">Precio</p>
-                <p className="font-medium text-gray-900">${event.price}</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Precio</p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">${event.price}</p>
               </div>
             </div>
           </div>
 
           {event.description && (
             <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-400 mb-1">Descripción</h3>
-              <p className="text-gray-700">{event.description}</p>
+              <h3 className="text-sm font-medium text-gray-400 dark:text-gray-500 mb-1">Descripción</h3>
+              <p className="text-gray-700 dark:text-gray-300">{event.description}</p>
             </div>
           )}
 

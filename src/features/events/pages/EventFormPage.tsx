@@ -77,7 +77,7 @@ export function EventFormPage() {
       <h1 className="text-2xl font-bold mb-6">{isEditing ? 'Editar evento' : 'Nuevo evento'}</h1>
       <Card>
         <CardHeader>
-          <p className="text-sm text-gray-500">Completá los datos del evento</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Completá los datos del evento</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

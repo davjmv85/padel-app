@@ -55,7 +55,7 @@ export function ProfilePage() {
             <div>
               <p className="font-medium">{appUser?.email}</p>
             </div>
-            <Badge className="bg-blue-100 text-blue-700">
+            <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
               {ROLES[appUser?.role || 'player']}
             </Badge>
           </div>

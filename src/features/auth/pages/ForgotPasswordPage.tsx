@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent } from '@/components/ui/Card';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 export function ForgotPasswordPage() {
   const { resetPassword } = useAuth();
@@ -25,11 +26,12 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 relative">
+      <ThemeToggle className="absolute top-4 right-4" />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-600">Padel App</h1>
-          <p className="text-gray-500 mt-2">Recuperá tu contraseña</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Recuperá tu contraseña</p>
         </div>
         <Card>
           <CardContent className="pt-6">
@@ -39,7 +41,7 @@ export function ForgotPasswordPage() {
                 Enviar enlace
               </Button>
             </form>
-            <p className="mt-4 text-center text-sm text-gray-500">
+            <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
               <Link to="/login" className="text-blue-600 hover:underline">
                 Volver al login
               </Link>

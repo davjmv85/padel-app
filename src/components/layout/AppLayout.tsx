@@ -12,6 +12,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 interface NavItem {
   label: string;
@@ -50,9 +51,9 @@ export function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Mobile header */}
-      <div className="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3">
+      <div className="lg:hidden flex items-center justify-between bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100">
           <Menu className="h-6 w-6" />
         </button>
@@ -64,7 +65,7 @@ export function AppLayout() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed left-0 top-0 bottom-0 w-64 bg-white shadow-xl z-50">
+          <div className="fixed left-0 top-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-xl z-50">
             <SidebarContent
               navItems={navItems}
               currentPath={location.pathname}
@@ -78,7 +79,7 @@ export function AppLayout() {
 
       <div className="flex">
         {/* Desktop sidebar */}
-        <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white border-r border-gray-200">
+        <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
           <SidebarContent
             navItems={navItems}
             currentPath={location.pathname}
@@ -113,7 +114,7 @@ function SidebarContent({
 }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-700">
         <span className="font-bold text-xl text-blue-600">Padel App</span>
         {onClose && (
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 lg:hidden">
@@ -130,7 +131,7 @@ function SidebarContent({
               to={item.path}
               onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+                isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
               {item.icon}
@@ -139,11 +140,12 @@ function SidebarContent({
           );
         })}
       </nav>
-      <div className="border-t border-gray-200 px-3 py-4">
-        <div className="px-3 py-2 text-sm text-gray-500 truncate">{userName}</div>
+      <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-4">
+        <ThemeToggle />
+        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 truncate">{userName}</div>
         <button
           onClick={onLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 w-full transition-colors"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 w-full transition-colors"
         >
           <LogOut className="h-5 w-5" />
           Cerrar sesión

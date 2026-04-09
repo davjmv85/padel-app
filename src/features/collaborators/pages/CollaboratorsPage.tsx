@@ -98,10 +98,10 @@ export function CollaboratorsPage() {
           {searchResults.length > 0 && (
             <div className="mt-4 space-y-2">
               {searchResults.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div>
                     <p className="font-medium">{user.displayName}</p>
-                    <p className="text-sm text-gray-500">{user.email}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
                   </div>
                   <Button size="sm" onClick={() => handleAssign(user.id)}>
                     Hacer colaborador
@@ -128,10 +128,10 @@ export function CollaboratorsPage() {
           ) : (
             <div className="space-y-2">
               {collaborators.map((collab) => (
-                <div key={collab.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={collab.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div>
                     <p className="font-medium">{collab.displayName}</p>
-                    <p className="text-sm text-gray-500">{collab.email}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{collab.email}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge className="bg-purple-100 text-purple-700">Colaborador</Badge>

@@ -75,8 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     const cred = await signInWithPopup(auth, provider);
-    const userDoc = await getDoc(doc(db, 'users', cred.user.uid));
-    if (!userDoc.exists()) {
+    const userDocSnap = await getDoc(doc(db, 'users', cred.user.uid));
+    if (!userDocSnap.exists()) {
       const names = cred.user.displayName?.split(' ') || ['', ''];
       const userData = {
         email: cred.user.email || '',

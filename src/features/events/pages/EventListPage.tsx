@@ -42,7 +42,7 @@ export function EventListPage() {
                       {EVENT_STATUSES[event.status]}
                     </Badge>
                   </div>
-                  <div className="space-y-2 text-sm text-gray-600">
+                  <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
                       <span>

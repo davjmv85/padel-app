@@ -194,7 +194,7 @@ export function AdminEventDetailPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{event.name}</h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-gray-400">
             {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time} | {event.location}
           </p>
         </div>
@@ -207,7 +207,7 @@ export function AdminEventDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
+      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto">
         {tabs.map(tab => (
           <button
             key={tab.key}
@@ -215,7 +215,7 @@ export function AdminEventDetailPage() {
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.key
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
             {tab.label}
@@ -228,12 +228,12 @@ export function AdminEventDetailPage() {
         <Card>
           <CardContent className="space-y-3 py-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-gray-400">Cupo:</span> <span className="font-medium">{event.currentRegistrations}/{event.maxCapacity}</span></div>
-              <div><span className="text-gray-400">Precio:</span> <span className="font-medium">${event.price}</span></div>
-              <div><span className="text-gray-400">Estado:</span> <span className="font-medium">{EVENT_STATUSES[event.status]}</span></div>
-              <div><span className="text-gray-400">Creador:</span> <span className="font-medium">{event.createdBy}</span></div>
+              <div><span className="text-gray-400 dark:text-gray-500">Cupo:</span> <span className="font-medium">{event.currentRegistrations}/{event.maxCapacity}</span></div>
+              <div><span className="text-gray-400 dark:text-gray-500">Precio:</span> <span className="font-medium">${event.price}</span></div>
+              <div><span className="text-gray-400 dark:text-gray-500">Estado:</span> <span className="font-medium">{EVENT_STATUSES[event.status]}</span></div>
+              <div><span className="text-gray-400 dark:text-gray-500">Creador:</span> <span className="font-medium">{event.createdBy}</span></div>
             </div>
-            {event.description && <p className="text-sm text-gray-600 pt-2">{event.description}</p>}
+            {event.description && <p className="text-sm text-gray-600 dark:text-gray-400 pt-2">{event.description}</p>}
           </CardContent>
         </Card>
       )}
@@ -248,16 +248,16 @@ export function AdminEventDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 font-medium text-gray-500">Jugador</th>
-                      <th className="text-left py-2 font-medium text-gray-500">Posición</th>
-                      <th className="text-left py-2 font-medium text-gray-500">Pago</th>
-                      <th className="text-right py-2 font-medium text-gray-500">Acciones</th>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Jugador</th>
+                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Posición</th>
+                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Pago</th>
+                      <th className="text-right py-2 font-medium text-gray-500 dark:text-gray-400">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {registrations.map(reg => (
-                      <tr key={reg.id} className="border-b border-gray-100">
+                      <tr key={reg.id} className="border-b border-gray-100 dark:border-gray-700">
                         <td className="py-2.5">{reg.userName}</td>
                         <td className="py-2.5">{PLAYER_POSITIONS[reg.userPosition]}</td>
                         <td className="py-2.5">
@@ -290,15 +290,15 @@ export function AdminEventDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 font-medium text-gray-500">Jugador</th>
-                      <th className="text-left py-2 font-medium text-gray-500">Estado</th>
-                      <th className="text-right py-2 font-medium text-gray-500">Acciones</th>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Jugador</th>
+                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Estado</th>
+                      <th className="text-right py-2 font-medium text-gray-500 dark:text-gray-400">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {registrations.map(reg => (
-                      <tr key={reg.id} className="border-b border-gray-100">
+                      <tr key={reg.id} className="border-b border-gray-100 dark:border-gray-700">
                         <td className="py-2.5">{reg.userName}</td>
                         <td className="py-2.5">
                           <Badge className={PAYMENT_STATUS_COLORS[reg.paymentStatus]}>
@@ -342,11 +342,11 @@ export function AdminEventDetailPage() {
               ) : (
                 <div className="space-y-2">
                   {pairs.map((pair, idx) => (
-                    <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                       <div>
-                        <span className="text-sm font-medium text-gray-400">Pareja {idx + 1}:</span>{' '}
+                        <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Pareja {idx + 1}:</span>{' '}
                         <span className="font-medium">{pair.player1Name}</span>
-                        <span className="text-gray-400 mx-2">/</span>
+                        <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
                         <span className="font-medium">{pair.player2Name}</span>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)}>
@@ -376,7 +376,7 @@ export function AdminEventDetailPage() {
               ) : (
                 <div className="space-y-3">
                   {matches.map(m => (
-                    <div key={m.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div key={m.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                       <div className="space-y-1">
                         <div className="flex items-center gap-3">
                           <span className={`font-medium ${m.winnerId === m.pairAId ? 'text-green-700' : ''}`}>{getPairName(m.pairAId)}</span>

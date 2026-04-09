@@ -69,14 +69,14 @@ export function AdminEventListPage() {
                     <div className="flex items-center gap-4">
                       <div>
                         <h3 className="font-semibold">{event.name}</h3>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time} | {event.location}
                         </p>
                       </div>
                     </div>
                   </Link>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       {event.currentRegistrations}/{event.maxCapacity}
                     </span>
                     <Badge className={EVENT_STATUS_COLORS[event.status]}>

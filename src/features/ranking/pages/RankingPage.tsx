@@ -21,7 +21,7 @@ export function RankingPage() {
       <h1 className="text-2xl font-bold mb-6">Ranking</h1>
       <Card>
         <CardHeader>
-          <p className="text-sm text-gray-500">Ranking individual por partidos ganados</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Ranking individual por partidos ganados</p>
         </CardHeader>
         <CardContent>
           {rankings.length === 0 ? (
@@ -34,19 +34,19 @@ export function RankingPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 font-medium text-gray-500 w-12">#</th>
-                    <th className="text-left py-2 font-medium text-gray-500">Jugador</th>
-                    <th className="text-center py-2 font-medium text-gray-500">PJ</th>
-                    <th className="text-center py-2 font-medium text-gray-500">PG</th>
-                    <th className="text-center py-2 font-medium text-gray-500">Puntos</th>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400 w-12">#</th>
+                    <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Jugador</th>
+                    <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PJ</th>
+                    <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PG</th>
+                    <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Puntos</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rankings.map((entry, idx) => (
-                    <tr key={entry.id} className="border-b border-gray-100">
+                    <tr key={entry.id} className="border-b border-gray-100 dark:border-gray-700">
                       <td className="py-2.5">
-                        <span className={`font-bold ${idx < 3 ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <span className={`font-bold ${idx < 3 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
                           {idx + 1}
                         </span>
                       </td>

@@ -53,10 +53,10 @@ export function MyRegistrationsPage() {
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Calendar className="h-5 w-5 text-gray-400" />
+                      <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                       <div>
                         <h3 className="font-semibold">{reg.event?.name || 'Evento'}</h3>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {reg.event?.date?.toDate ? reg.event.date.toDate().toLocaleDateString('es-AR') : ''} - {reg.event?.time}
                         </p>
                       </div>

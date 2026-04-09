@@ -1,7 +1,17 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
+  :root {
+    --toast-bg: #fff;
+    --toast-color: #1f2937;
+  }
+  .dark {
+    --toast-bg: #1f2937;
+    --toast-color: #f3f4f6;
+  }
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-900 dark:text-gray-100;
   }
 }

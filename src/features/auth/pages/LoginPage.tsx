@@ -8,6 +8,7 @@ import { loginSchema } from '@/utils/validation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent } from '@/components/ui/Card';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import type { LoginFormData } from '@/types';
 
 export function LoginPage() {
@@ -44,11 +45,12 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 relative">
+      <ThemeToggle className="absolute top-4 right-4" />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-600">Padel App</h1>
-          <p className="text-gray-500 mt-2">Iniciá sesión para continuar</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Iniciá sesión para continuar</p>
         </div>
         <Card>
           <CardContent className="pt-6">
@@ -60,9 +62,9 @@ export function LoginPage() {
               </Button>
             </form>
             <div className="my-4 flex items-center gap-3">
-              <div className="flex-1 border-t border-gray-200" />
-              <span className="text-sm text-gray-400">o</span>
-              <div className="flex-1 border-t border-gray-200" />
+              <div className="flex-1 border-t border-gray-200 dark:border-gray-700" />
+              <span className="text-sm text-gray-400 dark:text-gray-500">o</span>
+              <div className="flex-1 border-t border-gray-200 dark:border-gray-700" />
             </div>
             <Button variant="secondary" onClick={handleGoogle} disabled={loading} className="w-full">
               Continuar con Google
@@ -71,7 +73,7 @@ export function LoginPage() {
               <Link to="/forgot-password" className="text-blue-600 hover:underline block">
                 ¿Olvidaste tu contraseña?
               </Link>
-              <p className="text-gray-500">
+              <p className="text-gray-500 dark:text-gray-400">
                 ¿No tenés cuenta?{' '}
                 <Link to="/register" className="text-blue-600 hover:underline">
                   Registrate

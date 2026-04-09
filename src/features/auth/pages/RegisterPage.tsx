@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Card, CardContent } from '@/components/ui/Card';
 import { PLAYER_POSITIONS } from '@/utils/constants';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import type { RegisterFormData } from '@/types';
 
 export function RegisterPage() {
@@ -38,11 +39,12 @@ export function RegisterPage() {
   const positionOptions = Object.entries(PLAYER_POSITIONS).map(([value, label]) => ({ value, label }));
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-8 relative">
+      <ThemeToggle className="absolute top-4 right-4" />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-600">Padel App</h1>
-          <p className="text-gray-500 mt-2">Creá tu cuenta</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Creá tu cuenta</p>
         </div>
         <Card>
           <CardContent className="pt-6">
@@ -59,7 +61,7 @@ export function RegisterPage() {
                 Crear cuenta
               </Button>
             </form>
-            <p className="mt-4 text-center text-sm text-gray-500">
+            <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
               ¿Ya tenés cuenta?{' '}
               <Link to="/login" className="text-blue-600 hover:underline">
                 Iniciá sesión
