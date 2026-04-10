@@ -1,13 +1,13 @@
 {
   "hosting": [
     {
-      "site": "padel-app-x4-685d9",
+      "site": "padel-hub-4b3a0",
       "public": "dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [{ "source": "**", "destination": "/index.html" }]
     },
     {
-      "site": "padel-events",
+      "site": "padel-hub",
       "public": "dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [{ "source": "**", "destination": "/index.html" }]

@@ -60,7 +60,7 @@ export function AppLayout() {
         <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100">
           <Menu className="h-6 w-6" />
         </button>
-        <img src="/logo.svg" alt="Px4Dx3L" className="h-12 mx-auto" />
+        <img src="/logo.svg" alt="Px4Dx3L Hub" className="h-12 mx-auto" />
         <div className="w-10" />
       </div>
 
@@ -121,7 +121,7 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-        <img src="/logo.svg" alt="Px4Dx3L" className="h-12 mx-auto" />
+        <img src="/logo.svg" alt="Px4Dx3L Hub" className="h-12 mx-auto" />
         {onClose && (
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 lg:hidden">
             <X className="h-5 w-5" />

@@ -10,6 +10,7 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { sendTelegramMessage } from '@/lib/telegram';
 import type { Registration, AppUser } from '@/types';
 
 const registrationsRef = collection(db, 'registrations');
@@ -20,6 +21,10 @@ export async function registerForEvent(eventId: string, user: AppUser): Promise<
   const existingSnap = await getDocs(existingQuery);
   if (!existingSnap.empty) throw new Error('Ya estás inscripto en este evento');
 
+  let eventName = '';
+  let newCount = 0;
+  let maxCapacity = 0;
+
   await runTransaction(db, async (transaction) => {
     const eventRef = doc(db, 'events', eventId);
     const eventSnap = await transaction.get(eventRef);
@@ -29,6 +34,10 @@ export async function registerForEvent(eventId: string, user: AppUser): Promise<
     const eventData = eventSnap.data();
     if (eventData.status !== 'published') throw new Error('El evento no está abierto para inscripciones');
     if (eventData.currentRegistrations >= eventData.maxCapacity) throw new Error('El evento está lleno');
+
+    eventName = eventData.name;
+    newCount = eventData.currentRegistrations + 1;
+    maxCapacity = eventData.maxCapacity;
 
     const regRef = doc(registrationsRef);
     transaction.set(regRef, {
@@ -43,19 +52,37 @@ export async function registerForEvent(eventId: string, user: AppUser): Promise<
     });
 
     transaction.update(eventRef, {
-      currentRegistrations: eventData.currentRegistrations + 1,
+      currentRegistrations: newCount,
       updatedAt: serverTimestamp(),
     });
   });
+
+  // Fire-and-forget notification
+  sendTelegramMessage(
+    `✅ <b>Nueva inscripción</b>\n\n👤 ${user.displayName}\n🏆 ${eventName}\n👥 Cupo: ${newCount}/${maxCapacity}`
+  );
 }
 
 export async function cancelRegistration(registrationId: string, eventId: string): Promise<void> {
+  let eventName = '';
+  let userName = '';
+  let newCount = 0;
+  let maxCapacity = 0;
+
   await runTransaction(db, async (transaction) => {
     const regRef = doc(db, 'registrations', registrationId);
     const eventRef = doc(db, 'events', eventId);
     const eventSnap = await transaction.get(eventRef);
+    const regSnap = await transaction.get(regRef);
 
     if (!eventSnap.exists()) throw new Error('Evento no encontrado');
+    if (!regSnap.exists()) throw new Error('Inscripción no encontrada');
+
+    const eventData = eventSnap.data();
+    eventName = eventData.name;
+    userName = regSnap.data().userName;
+    newCount = Math.max(0, eventData.currentRegistrations - 1);
+    maxCapacity = eventData.maxCapacity;
 
     transaction.update(regRef, {
       status: 'cancelled',
@@ -64,10 +91,15 @@ export async function cancelRegistration(registrationId: string, eventId: string
     });
 
     transaction.update(eventRef, {
-      currentRegistrations: Math.max(0, eventSnap.data().currentRegistrations - 1),
+      currentRegistrations: newCount,
       updatedAt: serverTimestamp(),
     });
   });
+
+  // Fire-and-forget notification
+  sendTelegramMessage(
+    `❌ <b>Baja de inscripción</b>\n\n👤 ${userName}\n🏆 ${eventName}\n👥 Cupo: ${newCount}/${maxCapacity}`
+  );
 }
 
 export async function getEventRegistrations(eventId: string): Promise<Registration[]> {

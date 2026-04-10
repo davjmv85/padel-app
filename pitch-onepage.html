@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Padel App - One Sheet</title>
+<title>Px4Dx3L - One Sheet</title>
 <style>
   @page { size: A4; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -35,124 +35,218 @@
     background: rgba(255,255,255,0.08);
   }
 
-  .container { padding: 28px 36px; height: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
+  .container { padding: 22px 32px; height: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
 
   /* Header */
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.15); padding-bottom: 18px; }
-  .logo { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
-  .logo span { color: #60a5fa; }
-  .tagline { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 2px solid rgba(255,255,255,0.15); padding-bottom: 14px; }
+  .logo-wrap { background: #fff; padding: 10px 16px; border-radius: 12px; display: inline-flex; align-items: center; gap: 12px; }
+  .logo-icon { height: 60px; display: block; }
+  .logo-svg { height: 56px; display: block; }
+  .tagline { font-size: 12px; color: #94a3b8; margin-top: 4px; }
   .url { text-align: right; }
   .url a { color: #60a5fa; font-size: 13px; text-decoration: none; font-weight: 600; }
-  .url p { color: #64748b; font-size: 11px; margin-top: 2px; }
+  .url p { color: #64748b; font-size: 10px; margin-top: 2px; }
 
   /* Problem */
-  .problem { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
-  .problem h2 { font-size: 13px; color: #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; }
-  .problem p { font-size: 12.5px; color: #cbd5e1; line-height: 1.5; }
+  .problem { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
+  .problem h2 { font-size: 11px; color: #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; font-weight: 700; }
+  .problem p { font-size: 11px; color: #cbd5e1; line-height: 1.45; }
 
   /* Solution */
-  .solution { margin-bottom: 18px; }
-  .solution h2 { font-size: 13px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; }
-  .solution p { font-size: 13px; color: #e2e8f0; line-height: 1.5; }
+  .solution { margin-bottom: 14px; }
+  .solution h2 { font-size: 11px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; font-weight: 700; }
+  .solution p { font-size: 11.5px; color: #e2e8f0; line-height: 1.45; }
 
   /* Features grid */
-  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
-  .feature-col h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .feature-col h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); }
   .feature-col:first-child h3 { color: #60a5fa; }
   .feature-col:last-child h3 { color: #34d399; }
   .feature-col ul { list-style: none; }
-  .feature-col li { font-size: 11.5px; color: #cbd5e1; padding: 3px 0; padding-left: 16px; position: relative; line-height: 1.4; }
-  .feature-col li::before { content: ''; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; }
+  .feature-col li { font-size: 10.5px; color: #cbd5e1; padding: 2px 0; padding-left: 14px; position: relative; line-height: 1.35; }
+  .feature-col li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
   .feature-col:first-child li::before { background: #3b82f6; }
   .feature-col:last-child li::before { background: #10b981; }
 
+  /* Highlights */
+  .highlights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .highlight { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.2); border-radius: 8px; padding: 8px 10px; }
+  .highlight .icon { font-size: 16px; margin-bottom: 2px; }
+  .highlight .title { font-size: 10px; color: #93c5fd; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+  .highlight .desc { font-size: 9.5px; color: #94a3b8; margin-top: 2px; line-height: 1.3; }
+
   /* Comparison table */
-  .comparison { margin-bottom: 18px; }
-  .comparison h2 { font-size: 13px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; }
-  .comparison table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-  .comparison th { text-align: left; padding: 6px 10px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .comparison { margin-bottom: 14px; }
+  .comparison h2 { font-size: 11px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; }
+  .comparison table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  .comparison th { text-align: left; padding: 5px 8px; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
   .comparison th:first-child { color: #f87171; background: rgba(239,68,68,0.1); border-radius: 6px 0 0 6px; }
   .comparison th:last-child { color: #34d399; background: rgba(16,185,129,0.1); border-radius: 0 6px 6px 0; }
-  .comparison td { padding: 5px 10px; color: #cbd5e1; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .comparison td { padding: 4px 8px; color: #cbd5e1; border-bottom: 1px solid rgba(255,255,255,0.05); }
 
   /* Roadmap */
-  .roadmap { margin-bottom: 18px; }
-  .roadmap h2 { font-size: 13px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; }
+  .roadmap { margin-bottom: 14px; }
+  .roadmap h2 { font-size: 11px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; }
   .roadmap-items { display: flex; gap: 8px; }
-  .roadmap-item { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px; }
-  .roadmap-item .phase { font-size: 10px; color: #60a5fa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-  .roadmap-item p { font-size: 11px; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
-
-  /* Tech strip */
-  .tech { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-  .tech-tag { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.2); color: #93c5fd; font-size: 10.5px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+  .roadmap-item { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 10px; }
+  .roadmap-item .phase { font-size: 9.5px; color: #60a5fa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .roadmap-item p { font-size: 10px; color: #94a3b8; margin-top: 3px; line-height: 1.35; }
 
   /* Footer */
-  .footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px; }
-  .footer-left p { font-size: 11px; color: #64748b; }
+  .footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+  .footer-left p { font-size: 10px; color: #64748b; }
   .footer-left p strong { color: #94a3b8; }
   .contact { text-align: right; }
-  .contact p { font-size: 11px; color: #94a3b8; }
-  .contact a { color: #60a5fa; text-decoration: none; }
-
-  /* Ball decoration */
-  .ball { position: absolute; bottom: 120px; right: 80px; width: 28px; height: 28px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #e8d44d, #c9b422); opacity: 0.15; z-index: 0; }
-  .ball::after { content: ''; position: absolute; top: 3px; left: 6px; width: 16px; height: 20px; border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; border-left-color: transparent; border-bottom-color: transparent; transform: rotate(-30deg); }
+  .contact a { color: #60a5fa; text-decoration: none; font-size: 11px; font-weight: 600; }
 </style>
 </head>
 <body>
-
-<div class="ball"></div>
 
 <div class="container">
 
   <div class="header">
     <div>
-      <div class="logo">Padel<span>App</span></div>
+      <div class="logo-wrap">
+        <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+          <defs>
+            <linearGradient id="paddleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#1e293b"/>
+              <stop offset="100%" style="stop-color:#0f172a"/>
+            </linearGradient>
+            <radialGradient id="ballGradFav" cx="35%" cy="35%">
+              <stop offset="0%" style="stop-color:#f0e35a"/>
+              <stop offset="100%" style="stop-color:#c9b422"/>
+            </radialGradient>
+          </defs>
+          <g transform="rotate(-25 24 28)">
+            <ellipse cx="24" cy="18" rx="14" ry="17" fill="url(#paddleGrad)" stroke="#ef4444" stroke-width="2.5"/>
+            <circle cx="24" cy="6" r="1.5" fill="#ffffff"/>
+            <circle cx="18" cy="12" r="1.5" fill="#ffffff"/>
+            <circle cx="24" cy="12" r="1.5" fill="#ffffff"/>
+            <circle cx="30" cy="12" r="1.5" fill="#ffffff"/>
+            <circle cx="15" cy="18" r="1.5" fill="#ffffff"/>
+            <circle cx="21" cy="18" r="1.5" fill="#ffffff"/>
+            <circle cx="27" cy="18" r="1.5" fill="#ffffff"/>
+            <circle cx="33" cy="18" r="1.5" fill="#ffffff"/>
+            <circle cx="18" cy="24" r="1.5" fill="#ffffff"/>
+            <circle cx="24" cy="24" r="1.5" fill="#ffffff"/>
+            <circle cx="30" cy="24" r="1.5" fill="#ffffff"/>
+            <circle cx="21" cy="30" r="1.5" fill="#ffffff"/>
+            <circle cx="27" cy="30" r="1.5" fill="#ffffff"/>
+            <rect x="22" y="34" width="4" height="6" fill="#ffffff" stroke="#0f172a" stroke-width="1"/>
+            <rect x="20" y="40" width="8" height="16" rx="2" fill="#ffffff" stroke="#0f172a" stroke-width="1"/>
+            <line x1="20" y1="44" x2="28" y2="44" stroke="#ef4444" stroke-width="0.8"/>
+            <line x1="20" y1="48" x2="28" y2="48" stroke="#ef4444" stroke-width="0.8"/>
+            <line x1="20" y1="52" x2="28" y2="52" stroke="#ef4444" stroke-width="0.8"/>
+          </g>
+          <circle cx="50" cy="40" r="9" fill="url(#ballGradFav)" stroke="#8a7a1a" stroke-width="1"/>
+          <path d="M 43 35 Q 50 42, 44 47" stroke="white" stroke-width="1.5" fill="none" opacity="0.7"/>
+          <path d="M 57 35 Q 50 42, 56 47" stroke="white" stroke-width="1.5" fill="none" opacity="0.7"/>
+          <ellipse cx="46" cy="37" rx="2.5" ry="1.5" fill="white" opacity="0.4"/>
+        </svg>
+        <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 -10 430 90" fill="none">
+          <defs>
+            <radialGradient id="ball" cx="35%" cy="35%">
+              <stop offset="0%" style="stop-color:#f0e35a"/>
+              <stop offset="100%" style="stop-color:#c9b422"/>
+            </radialGradient>
+          </defs>
+          <text x="0" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" stroke="white" stroke-width="3" fill="none">P</text>
+          <text x="52" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" stroke="white" stroke-width="3" fill="none">4</text>
+          <text x="105" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" stroke="white" stroke-width="3" fill="none">D</text>
+          <text x="166" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" stroke="white" stroke-width="3" fill="none">3</text>
+          <text x="210" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" stroke="white" stroke-width="3" fill="none">L</text>
+          <text x="0" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" fill="#101828">P</text>
+          <text x="52" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" fill="#101828">4</text>
+          <text x="105" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" fill="#101828">D</text>
+          <text x="166" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" fill="#101828">3</text>
+          <text x="210" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="88" font-weight="800" fill="#101828">L</text>
+          <text x="52" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="30" font-weight="600" stroke="white" stroke-width="2" fill="none">x</text>
+          <text x="166" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="30" font-weight="600" stroke="white" stroke-width="2" fill="none">x</text>
+          <text x="52" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="30" font-weight="600" fill="#c9b422">x</text>
+          <text x="166" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="30" font-weight="600" fill="#c9b422">x</text>
+          <text x="263" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="62" font-weight="800" stroke="white" stroke-width="2.5" fill="none">H</text>
+          <text x="302" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="62" font-weight="800" stroke="white" stroke-width="2.5" fill="none">U</text>
+          <text x="340" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="62" font-weight="800" stroke="white" stroke-width="2.5" fill="none">B</text>
+          <text x="263" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="62" font-weight="800" fill="#b91c1c">H</text>
+          <text x="302" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="62" font-weight="800" fill="#b91c1c">U</text>
+          <text x="340" y="58" font-family="'Segoe UI', system-ui, sans-serif" font-size="62" font-weight="800" fill="#b91c1c">B</text>
+          <circle cx="400" cy="38" r="16" fill="url(#ball)"/>
+          <ellipse cx="400" cy="58" rx="10" ry="3" fill="#101828" opacity="0.15"/>
+          <path d="M 392 28 Q 400 38, 394 50" stroke="white" stroke-width="1.8" fill="none" opacity="0.6"/>
+          <path d="M 408 28 Q 400 38, 406 50" stroke="white" stroke-width="1.8" fill="none" opacity="0.6"/>
+        </svg>
+      </div>
       <div class="tagline">Organiza torneos como un profesional</div>
     </div>
     <div class="url">
-      <a href="https://padel-events.web.app">padel-events.web.app</a>
+      <a href="https://padel-hub.web.app">padel-hub.web.app</a>
       <p>MVP funcional y deployado</p>
     </div>
   </div>
 
   <div class="problem">
     <h2>El problema</h2>
-    <p>Organizar torneos de padel hoy es un caos de grupos de WhatsApp, planillas de Excel, pagos sin control y cero trazabilidad. Los organizadores pierden tiempo, los jugadores pierden informacion.</p>
+    <p>Organizar torneos de padel hoy es un caos: grupos de WhatsApp, planillas de Excel, papelitos para parejas, sin control de pagos ni trazabilidad de resultados. Los organizadores pierden tiempo, los jugadores pierden informacion.</p>
   </div>
 
   <div class="solution">
     <h2>La solucion</h2>
-    <p><strong>Padel App</strong> centraliza toda la organizacion de eventos de padel en una plataforma web: inscripciones, pagos, parejas, resultados y ranking automatico. Simple, rapida y profesional.</p>
+    <p><strong>Px4Dx3L Hub</strong> centraliza toda la organizacion de eventos de padel en una plataforma web: inscripciones, pagos, parejas, partidos, resultados, posiciones y ranking. Con automatizaciones que ahorran horas de trabajo.</p>
+  </div>
+
+  <div class="highlights">
+    <div class="highlight">
+      <div class="icon">🤝</div>
+      <div class="title">Auto-armar parejas</div>
+      <div class="desc">Drive con reves, indistintos como comodin</div>
+    </div>
+    <div class="highlight">
+      <div class="icon">⚔️</div>
+      <div class="title">Auto-armar partidos</div>
+      <div class="desc">Round-robin por jornadas, 3 partidos por pareja</div>
+    </div>
+    <div class="highlight">
+      <div class="icon">🏆</div>
+      <div class="title">Posiciones por evento</div>
+      <div class="desc">Tabla con sets y games, desempates incluidos</div>
+    </div>
+    <div class="highlight">
+      <div class="icon">📲</div>
+      <div class="title">Telegram en vivo</div>
+      <div class="desc">Notificacion al organizador en cada inscripcion</div>
+    </div>
   </div>
 
   <div class="features">
     <div class="feature-col">
       <h3>Para el organizador</h3>
       <ul>
-        <li>Crear y gestionar eventos con estado, cupo y precio</li>
-        <li>Control automatico de cupo maximo</li>
-        <li>Lista de espera con notificacion</li>
-        <li>Gestion de pagos por jugador</li>
-        <li>Armado manual de parejas con validacion</li>
-        <li>Carga y edicion de resultados</li>
-        <li>Ranking automatico individual</li>
-        <li>Asignar colaboradores para co-gestionar</li>
+        <li>CRUD de eventos con estados (borrador, publicado, finalizado, etc)</li>
+        <li>Control automatico de cupo + lista de espera</li>
+        <li>Auto-armado de parejas respetando posiciones</li>
+        <li>Auto-armado de partidos en jornadas (round-robin)</li>
+        <li>Carga de resultados con ganador automatico</li>
+        <li>Tabla de posiciones por evento (puntos, sets, games)</li>
+        <li>Ranking general acumulativo entre eventos</li>
+        <li>Marca de pagos integrada por inscripto</li>
+        <li>Notificaciones a Telegram al organizador</li>
+        <li>Colaboradores para co-gestionar eventos</li>
       </ul>
     </div>
     <div class="feature-col">
       <h3>Para el jugador</h3>
       <ul>
         <li>Registro con email o Google en 1 click</li>
-        <li>Perfil con posicion preferida</li>
-        <li>Ver eventos disponibles con cupos en tiempo real</li>
-        <li>Inscripcion instantanea</li>
-        <li>Alerta de cupo si el evento esta lleno</li>
+        <li>Perfil con posicion preferida (drive/reves/indistinto)</li>
+        <li>Eventos disponibles con cupos en tiempo real</li>
+        <li>Inscripcion / cancelacion instantanea</li>
+        <li>Alerta automatica si se libera un lugar</li>
         <li>Historial de inscripciones</li>
-        <li>Consultar ranking general</li>
+        <li>Acceso al ranking general y a posiciones por torneo</li>
+        <li>Estado de pago siempre visible</li>
         <li>Modo claro y oscuro</li>
+        <li>100% responsive (PC, tablet, celular)</li>
       </ul>
     </div>
   </div>
@@ -160,50 +254,43 @@
   <div class="comparison">
     <h2>Antes vs. Despues</h2>
     <table>
-      <tr><th>Sin Padel App</th><th>Con Padel App</th></tr>
+      <tr><th>Sin Px4Dx3L Hub</th><th>Con Px4Dx3L Hub</th></tr>
       <tr><td>WhatsApp desbordado</td><td>Todo centralizado en una plataforma</td></tr>
-      <tr><td>Excel para pagos</td><td>Control de pagos integrado</td></tr>
+      <tr><td>Excel para pagos</td><td>Marca de pagos integrada</td></tr>
       <tr><td>Sin control de cupo real</td><td>Cupo automatico + lista de espera</td></tr>
-      <tr><td>Resultados en papel</td><td>Resultados digitales + ranking automatico</td></tr>
-      <tr><td>Cada torneo empieza de cero</td><td>Ranking acumulativo entre eventos</td></tr>
+      <tr><td>Parejas a mano en papel</td><td>Auto-armado respetando posiciones</td></tr>
+      <tr><td>Cruces de partidos improvisados</td><td>Round-robin por jornadas automatico</td></tr>
+      <tr><td>Resultados en planillas</td><td>Carga digital + ganador calculado</td></tr>
+      <tr><td>Sin tabla de posiciones</td><td>Tabla en vivo por evento + ranking general</td></tr>
+      <tr><td>Sin trazabilidad</td><td>Notificaciones automaticas a Telegram</td></tr>
     </table>
   </div>
 
-  <div class="roadmap">
+  <!-- <div class="roadmap">
     <h2>Roadmap</h2>
     <div class="roadmap-items">
       <div class="roadmap-item">
         <div class="phase">Fase 1 - Actual</div>
-        <p>MVP web completo con gestion de eventos, inscripciones, pagos, parejas, resultados y ranking</p>
+        <p>MVP web funcional con eventos, parejas, partidos, resultados, posiciones, ranking y notificaciones</p>
       </div>
       <div class="roadmap-item">
         <div class="phase">Fase 2</div>
-        <p>Notificaciones por email, cobro online (MercadoPago), estadisticas avanzadas</p>
+        <p>Cobro online (MercadoPago), notificaciones por mail, fases eliminatorias, categorias</p>
       </div>
       <div class="roadmap-item">
         <div class="phase">Fase 3</div>
-        <p>App movil nativa (iOS/Android), fases de torneo, categorias, ligas</p>
+        <p>App movil nativa (iOS/Android), ligas multi-fecha, estadisticas avanzadas por jugador</p>
       </div>
     </div>
-  </div>
-<!-- 
-  <div class="tech">
-    <span class="tech-tag">React</span>
-    <span class="tech-tag">TypeScript</span>
-    <span class="tech-tag">Firebase</span>
-    <span class="tech-tag">Tailwind CSS</span>
-    <span class="tech-tag">Cloud Functions</span>
-    <span class="tech-tag">Responsive</span>
-    <span class="tech-tag">Preparado para mobile</span>
   </div> -->
 
   <div class="footer">
     <div class="footer-left">
-      <p><strong>Seguridad:</strong> 3 roles (admin, colaborador, jugador) con permisos en frontend y backend</p>
-      <!-- <p><strong>Modelo:</strong> Freemium / Comision por inscripcion / Suscripcion para clubes</p> -->
+      <p><strong>Seguridad:</strong> 3 roles (admin, colaborador, jugador) con permisos validados en frontend y backend</p>
+      <!-- <p><strong>Stack:</strong> React + TypeScript + Firebase. Cero infraestructura propia que mantener.</p> -->
     </div>
     <div class="contact">
-      <p><a href="https://padel-events.web.app">padel-events.web.app</a></p>
+      <a href="https://padel-hub.web.app">padel-hub.web.app</a>
     </div>
   </div>
 

@@ -43,7 +43,7 @@ export function RegisterPage() {
       <ThemeToggle className="absolute top-4 right-4" />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img src="/logo.svg" alt="Px4Dx3L" className="h-12 mx-auto" />
+          <img src="/logo.svg" alt="Px4Dx3L Hub" className="h-12 mx-auto" />
           <p className="text-gray-500 dark:text-gray-400 mt-2">Creá tu cuenta</p>
         </div>
         <Card>
