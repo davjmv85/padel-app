@@ -27,7 +27,7 @@ export function RegisterPage() {
     setLoading(true);
     try {
       await registerUser(data.email, data.password, data.firstName, data.lastName, data.position);
-      toast.success('Cuenta creada. Te enviamos un email para verificarla. Revisá tu spam si no lo encontrás.', { duration: 6000 });
+      toast.success('Cuenta creada. Te enviamos un email para verificarla. Revisá tus correos no deseados / spam si no lo encontrás.', { duration: 6000 });
       navigate('/');
     } catch {
       toast.error('Error al crear la cuenta. El email puede estar en uso.');

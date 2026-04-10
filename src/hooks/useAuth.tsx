@@ -9,6 +9,7 @@ import {
   sendPasswordResetEmail,
   sendEmailVerification,
   reload,
+  unlink,
   type User,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -102,6 +103,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       await setDoc(doc(db, 'users', cred.user.uid), userData);
       setAppUser({ id: cred.user.uid, ...userData } as unknown as AppUser);
+    }
+    // Unlink password provider if it exists — Google is now the only sign-in method
+    const hasPassword = cred.user.providerData.some((p) => p.providerId === 'password');
+    if (hasPassword) {
+      try {
+        await unlink(cred.user, 'password');
+      } catch (err) {
+        console.error('Error unlinking password provider:', err);
+      }
     }
   };
 
