@@ -46,11 +46,15 @@ export function AdminEventDetailPage() {
   const [pairLoading, setPairLoading] = useState(false);
   // For 'libre' type: which fecha (round) the modal is creating a pair for
   const [pairFormRound, setPairFormRound] = useState<number | null>(null);
+  // For libre: local state for empty draft fechas (not yet in DB)
+  const [draftFechas, setDraftFechas] = useState<number[]>([]);
 
   // Match form (create)
   const [matchPairA, setMatchPairA] = useState('');
   const [matchPairB, setMatchPairB] = useState('');
   const [matchLoading, setMatchLoading] = useState(false);
+  // For libre: which fecha (round) the new match belongs to
+  const [matchFormRound, setMatchFormRound] = useState<number | null>(null);
 
   // Match result form (load score)
   const [resultModalOpen, setResultModalOpen] = useState(false);
@@ -207,7 +211,7 @@ export function AdminEventDetailPage() {
     if (!eventId || !appUser || !matchPairA || !matchPairB) return;
     setMatchLoading(true);
     try {
-      await createMatch(eventId, matchPairA, matchPairB, appUser.id);
+      await createMatch(eventId, matchPairA, matchPairB, appUser.id, matchFormRound ?? undefined);
       toast.success('Partido creado');
       setMatchModalOpen(false);
       resetMatchForm();
@@ -342,6 +346,7 @@ export function AdminEventDetailPage() {
   const resetMatchForm = () => {
     setMatchPairA('');
     setMatchPairB('');
+    setMatchFormRound(null);
   };
 
   const openLoadResult = (m: Match) => {
@@ -487,9 +492,13 @@ export function AdminEventDetailPage() {
     ...availablePlayers.map(r => ({ value: r.userId, label: `${r.userName} (${PLAYER_POSITIONS[r.userPosition]})` })),
   ];
 
+  // For libre with a selected fecha, only show pairs from that fecha
+  const pairsForMatchModal = isLibre && matchFormRound != null
+    ? pairs.filter(p => p.round === matchFormRound)
+    : pairs;
   const pairOptions = [
     { value: '', label: 'Seleccionar pareja' },
-    ...pairs.map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` })),
+    ...pairsForMatchModal.map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` })),
   ];
 
   const isFinished = event.status === 'finished';
@@ -637,31 +646,39 @@ export function AdminEventDetailPage() {
 
       {/* Pairs Tab - Libre (grouped by fecha) */}
       {activeTab === 'pairs' && isLibre && (() => {
-        const roundsSet = new Set(pairs.map(p => p.round).filter((r): r is number => r != null));
-        const rounds = Array.from(roundsSet).sort((a, b) => a - b);
-        const nextRound = (rounds.length > 0 ? Math.max(...rounds) : 0) + 1;
+        const dbRounds = Array.from(new Set(pairs.map(p => p.round).filter((r): r is number => r != null)));
+        // Union of rounds in DB and locally-drafted empty fechas
+        const allRounds = Array.from(new Set([...dbRounds, ...draftFechas])).sort((a, b) => a - b);
+        const maxRound = allRounds.length > 0 ? Math.max(...allRounds) : 0;
+        const handleNewFecha = () => {
+          setDraftFechas(prev => [...prev, maxRound + 1]);
+        };
         return (
           <div>
             <div className="flex justify-end gap-2 mb-4 flex-wrap">
               <Button variant="secondary" onClick={() => setDeleteAllPairsOpen(true)} disabled={pairs.length === 0 || isFinished}>
                 Borrar todas
               </Button>
-              <Button onClick={() => { setPairFormRound(nextRound); setPairModalOpen(true); }} disabled={isFinished}>
-                + Agregar pareja a Fecha {nextRound}
+              <Button onClick={handleNewFecha} disabled={isFinished}>
+                + Nueva fecha
               </Button>
             </div>
-            {rounds.length === 0 ? (
-              <Card><CardContent className="py-4"><EmptyState title="Sin parejas" description="Agregá parejas a la Fecha 1 para empezar" /></CardContent></Card>
+            {allRounds.length === 0 ? (
+              <Card><CardContent className="py-4"><EmptyState title="Sin fechas" description='Apretá "+ Nueva fecha" para empezar' /></CardContent></Card>
             ) : (
               <div className="space-y-6">
-                {rounds.map(round => {
+                {allRounds.map(round => {
                   const pairsInRound = pairs.filter(p => p.round === round);
                   const playersInRound = new Set(pairsInRound.flatMap(p => [p.player1Id, p.player2Id]));
                   const canAddMore = registrations.filter(r => !playersInRound.has(r.userId)).length >= 2;
+                  const isDraft = dbRounds.indexOf(round) === -1;
                   return (
                     <div key={round}>
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Fecha {round}</h3>
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Fecha {round}
+                          {isDraft && <span className="ml-2 text-xs normal-case text-yellow-600 dark:text-yellow-400">(sin parejas)</span>}
+                        </h3>
                         <div className="flex gap-2">
                           <Button variant="ghost" size="sm" onClick={() => handleAutoPair(round)} loading={pairLoading} disabled={!canAddMore || isFinished}>
                             Auto-armar
@@ -709,8 +726,8 @@ export function AdminEventDetailPage() {
         );
       })()}
 
-      {/* Matches Tab */}
-      {activeTab === 'matches' && (
+      {/* Matches Tab - Americano */}
+      {activeTab === 'matches' && !isLibre && (
         <div>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
             <Button variant="secondary" onClick={() => setDeleteAllMatchesOpen(true)} disabled={matches.length === 0 || isFinished}>
@@ -730,7 +747,6 @@ export function AdminEventDetailPage() {
               ) : (
                 <div className="space-y-6">
                   {(() => {
-                    // Group matches by round (or "Sin fecha" for matches without round)
                     const groups: Record<string, Match[]> = {};
                     matches.forEach(m => {
                       const key = m.round ? String(m.round) : 'manual';
@@ -783,6 +799,85 @@ export function AdminEventDetailPage() {
           </Card>
         </div>
       )}
+
+      {/* Matches Tab - Libre (grouped by fecha, one section per fecha with pairs) */}
+      {activeTab === 'matches' && isLibre && (() => {
+        // Only show fechas that have pairs
+        const dbRounds = Array.from(new Set(pairs.map(p => p.round).filter((r): r is number => r != null))).sort((a, b) => a - b);
+        return (
+          <div>
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              <Button variant="secondary" onClick={() => setDeleteAllMatchesOpen(true)} disabled={matches.length === 0 || isFinished}>
+                Borrar todos
+              </Button>
+              <Button variant="secondary" onClick={handleAutoMatches} loading={matchLoading} disabled={dbRounds.length === 0 || isFinished}>
+                Auto-armar partidos
+              </Button>
+            </div>
+            {dbRounds.length === 0 ? (
+              <Card><CardContent className="py-4"><EmptyState title="Sin fechas" description="Primero armá parejas en la pestaña Parejas" /></CardContent></Card>
+            ) : (
+              <div className="space-y-6">
+                {dbRounds.map(round => {
+                  const pairsInRound = pairs.filter(p => p.round === round);
+                  const matchesInRound = matches.filter(m => m.round === round);
+                  const canCreate = pairsInRound.length >= 2;
+                  return (
+                    <div key={round}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Fecha {round}</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { resetMatchForm(); setMatchFormRound(round); setMatchModalOpen(true); }}
+                          disabled={!canCreate || isFinished}
+                        >
+                          + Partido
+                        </Button>
+                      </div>
+                      <Card>
+                        <CardContent className="py-4">
+                          {matchesInRound.length === 0 ? (
+                            <EmptyState title="Sin partidos" description="Cargá los partidos de esta fecha" />
+                          ) : (
+                            <div className="space-y-2">
+                              {matchesInRound.map(m => {
+                                const hasResult = !!m.winnerId;
+                                return (
+                                  <div key={m.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg gap-3">
+                                    <div className="space-y-1 flex-1 min-w-0">
+                                      <div className="flex items-center gap-3">
+                                        <span className={`font-medium ${m.winnerId === m.pairAId ? 'text-green-700 dark:text-green-400' : ''}`}>{getPairName(m.pairAId)}</span>
+                                        {m.scoreA && <span className="text-sm font-bold">{m.scoreA}</span>}
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <span className={`font-medium ${m.winnerId === m.pairBId ? 'text-green-700 dark:text-green-400' : ''}`}>{getPairName(m.pairBId)}</span>
+                                        {m.scoreB && <span className="text-sm font-bold">{m.scoreB}</span>}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <MatchKebab
+                                        hasResult={hasResult}
+                                        onLoadResult={() => openLoadResult(m)}
+                                        onDelete={() => setDeleteMatchId(m.id)}
+                                        disabled={isFinished}
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Standings Tab */}
       {activeTab === 'standings' && (
@@ -869,7 +964,7 @@ export function AdminEventDetailPage() {
       </Modal>
 
       {/* Create Match Modal (only pairs) */}
-      <Modal open={matchModalOpen} onClose={() => { setMatchModalOpen(false); resetMatchForm(); }} title="Cargar partido">
+      <Modal open={matchModalOpen} onClose={() => { setMatchModalOpen(false); resetMatchForm(); }} title={isLibre && matchFormRound ? `Cargar partido - Fecha ${matchFormRound}` : 'Cargar partido'}>
         <div className="space-y-4">
           <Select label="Pareja A" options={pairOptions} value={matchPairA} onChange={e => setMatchPairA(e.target.value)} />
           <Select label="Pareja B" options={pairOptions.filter(o => o.value !== matchPairA)} value={matchPairB} onChange={e => setMatchPairB(e.target.value)} />

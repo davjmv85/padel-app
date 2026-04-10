@@ -69,7 +69,7 @@
   .feature-col:last-child li::before { background: #10b981; }
 
   /* Highlights */
-  .highlights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .highlights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
   .highlight { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.2); border-radius: 8px; padding: 8px 10px; }
   .highlight .icon { font-size: 16px; margin-bottom: 2px; }
   .highlight .title { font-size: 10px; color: #93c5fd; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
@@ -197,24 +197,34 @@
 
   <div class="highlights">
     <div class="highlight">
+      <div class="icon">🎯</div>
+      <div class="title">2 tipos de torneo</div>
+      <div class="desc">Americano (parejas fijas) o Libre (parejas por fecha)</div>
+    </div>
+    <div class="highlight">
       <div class="icon">🤝</div>
       <div class="title">Auto-armar parejas</div>
-      <div class="desc">Drive con reves, indistintos como comodin</div>
+      <div class="desc">Drive + reves, indistintos como comodin</div>
     </div>
     <div class="highlight">
       <div class="icon">⚔️</div>
       <div class="title">Auto-armar partidos</div>
-      <div class="desc">Round-robin por jornadas, 3 partidos por pareja</div>
+      <div class="desc">Round-robin por jornadas, sin duplicados</div>
     </div>
     <div class="highlight">
       <div class="icon">🏆</div>
-      <div class="title">Posiciones por evento</div>
-      <div class="desc">Tabla con sets y games, desempates incluidos</div>
+      <div class="title">Posiciones en vivo</div>
+      <div class="desc">Por pareja o por jugador, con sets y games</div>
     </div>
     <div class="highlight">
       <div class="icon">📲</div>
       <div class="title">Telegram en vivo</div>
       <div class="desc">Notificacion al organizador en cada inscripcion</div>
+    </div>
+    <div class="highlight">
+      <div class="icon">🔐</div>
+      <div class="title">Acceso pago</div>
+      <div class="desc">Los detalles del torneo se desbloquean al pagar</div>
     </div>
   </div>
 
@@ -222,14 +232,16 @@
     <div class="feature-col">
       <h3>Para el organizador</h3>
       <ul>
-        <li>CRUD de eventos con estados (borrador, publicado, finalizado, etc)</li>
+        <li>CRUD de eventos con estados y tipos de torneo</li>
         <li>Control automatico de cupo + lista de espera</li>
         <li>Auto-armado de parejas respetando posiciones</li>
         <li>Auto-armado de partidos en jornadas (round-robin)</li>
+        <li>Modo Libre: parejas distintas por cada fecha</li>
         <li>Carga de resultados con ganador automatico</li>
         <li>Tabla de posiciones por evento (puntos, sets, games)</li>
         <li>Ranking general acumulativo entre eventos</li>
-        <li>Marca de pagos integrada por inscripto</li>
+        <li>Marca de pagos integrada con menu kebab</li>
+        <li>Seed de jugadores manual con email real</li>
         <li>Notificaciones a Telegram al organizador</li>
         <li>Colaboradores para co-gestionar eventos</li>
       </ul>
@@ -237,16 +249,16 @@
     <div class="feature-col">
       <h3>Para el jugador</h3>
       <ul>
-        <li>Registro con email o Google en 1 click</li>
+        <li>Registro con email verificado o Google en 1 click</li>
         <li>Perfil con posicion preferida (drive/reves/indistinto)</li>
         <li>Eventos disponibles con cupos en tiempo real</li>
         <li>Inscripcion / cancelacion instantanea</li>
         <li>Alerta automatica si se libera un lugar</li>
         <li>Historial de inscripciones</li>
-        <li>Acceso al ranking general y a posiciones por torneo</li>
-        <li>Estado de pago siempre visible</li>
-        <li>Modo claro y oscuro</li>
-        <li>100% responsive (PC, tablet, celular)</li>
+        <li>Acceso a inscriptos, parejas, partidos y posiciones (si pago)</li>
+        <li>Resalta su propia pareja / posicion en las tablas</li>
+        <li>Ranking general disponible para todos</li>
+        <li>Modo claro y oscuro, 100% responsive</li>
       </ul>
     </div>
   </div>
@@ -258,11 +270,12 @@
       <tr><td>WhatsApp desbordado</td><td>Todo centralizado en una plataforma</td></tr>
       <tr><td>Excel para pagos</td><td>Marca de pagos integrada</td></tr>
       <tr><td>Sin control de cupo real</td><td>Cupo automatico + lista de espera</td></tr>
+      <tr><td>Un solo formato de torneo</td><td>Americano y Libre, parejas por fecha</td></tr>
       <tr><td>Parejas a mano en papel</td><td>Auto-armado respetando posiciones</td></tr>
-      <tr><td>Cruces de partidos improvisados</td><td>Round-robin por jornadas automatico</td></tr>
+      <tr><td>Cruces de partidos improvisados</td><td>Round-robin por jornadas sin duplicados</td></tr>
       <tr><td>Resultados en planillas</td><td>Carga digital + ganador calculado</td></tr>
-      <tr><td>Sin tabla de posiciones</td><td>Tabla en vivo por evento + ranking general</td></tr>
-      <tr><td>Sin trazabilidad</td><td>Notificaciones automaticas a Telegram</td></tr>
+      <tr><td>Sin tabla de posiciones</td><td>Posiciones en vivo por evento + ranking</td></tr>
+      <tr><td>Cero trazabilidad</td><td>Notificaciones automaticas a Telegram</td></tr>
     </table>
   </div>
 

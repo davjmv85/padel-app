@@ -13,7 +13,7 @@ import {
 } from '@/features/registrations/services/registrationService';
 import { getEventPairs } from '@/features/pairs/services/pairService';
 import { getEventMatches } from '@/features/matches/services/matchService';
-import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -250,6 +250,7 @@ export function EventDetailPage() {
           <div className="flex gap-3">
             {canRegister && (
               <Button onClick={handleRegister} loading={actionLoading}>
+                {/* <img src="/favicon.svg" alt="" className="h-5 w-5 mr-2" /> */}
                 Inscribirme
               </Button>
             )}

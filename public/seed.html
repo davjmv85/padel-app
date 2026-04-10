@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head><title>Seed Players</title>
+<style>
+  body { font-family: system-ui; padding: 20px; max-width: 720px; margin: 0 auto; background: #0d2147; color: #e2e8f0; }
+  h2 { color: #60a5fa; }
+  button { padding: 12px 24px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  pre { background: #000; color: #4ade80; padding: 16px; border-radius: 8px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; max-height: 60vh; overflow-y: auto; }
+  textarea { width: 100%; padding: 10px; font-size: 13px; border: 1px solid #334155; border-radius: 6px; font-family: monospace; background: #1e293b; color: #e2e8f0; }
+  label { font-size: 13px; font-weight: 600; display: block; margin: 12px 0 4px; color: #94a3b8; }
+  .hint { font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 4px; }
+  select { padding: 8px 12px; font-size: 14px; border-radius: 6px; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; width: 100%; }
+  .err { color: #f87171; }
+  .warn { color: #fbbf24; }
+  .ok { color: #4ade80; }
+  .info { color: #93c5fd; }
+</style>
+</head>
+<body>
+<h2>Crear jugadores e inscribirlos al evento</h2>
+
+<p>1. Logueate con tu cuenta admin de Google.<br>
+2. Pegá la lista de jugadores en el formato indicado.<br>
+3. Elegí el evento donde inscribirlos.<br>
+4. Ejecutá.</p>
+
+<label>Lista de jugadores (uno por línea)</label>
+<textarea id="players" rows="14" placeholder="Formato: Nombre|Apellido|email@real.com|posicion
+
+Donde posicion es una de: drive, reves, indistinto
+
+Ejemplo:
+Martin|Gonzalez|martin@gmail.com|drive
+Lucas|Rodriguez|lucas@gmail.com|reves
+Federico|Lopez|fede@gmail.com|indistinto"></textarea>
+<p class="hint">Separá cada campo con "|" (pipe). Posicion: drive, reves o indistinto.</p>
+
+<div>
+  <label>Evento</label>
+  <select id="eventSelect" disabled>
+    <option>Primero logueate para listar eventos</option>
+  </select>
+</div>
+
+<div style="margin-top: 20px;">
+  <button id="loginBtn" onclick="doLogin()">1. Login con Google</button>
+  <button id="runBtn" onclick="run()" disabled>2. Crear e inscribir</button>
+</div>
+
+<pre id="log"></pre>
+
+<script type="module">
+import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, addDoc, updateDoc, collection, query, where, getDocs, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB0c3F_2UxWu0rwpNBIC61mE1EWB6xExNQ",
+  authDomain: "padel-hub-4b3a0.firebaseapp.com",
+  projectId: "padel-hub-4b3a0",
+  storageBucket: "padel-hub-4b3a0.firebasestorage.app",
+  messagingSenderId: "546100517843",
+  appId: "1:546100517843:web:f2f2223eb0e5dadd8e6d26"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const logEl = document.getElementById('log');
+function print(msg, cls) {
+  const line = document.createElement('span');
+  if (cls) line.className = cls;
+  line.textContent = msg + '\n';
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+let events = [];
+
+function randomPassword() {
+  return 'pdl' + Math.random().toString(36).slice(-10);
+}
+
+async function findUserIdByEmail(email) {
+  const q = query(collection(db, 'users'), where('email', '==', email));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return snap.docs[0].id;
+}
+
+window.doLogin = async function() {
+  try {
+    const provider = new GoogleAuthProvider();
+    const cred = await signInWithPopup(auth, provider);
+    print('OK Login: ' + cred.user.email, 'ok');
+
+    const snap = await getDocs(collection(db, 'events'));
+    events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const select = document.getElementById('eventSelect');
+    select.innerHTML = '';
+    if (events.length === 0) {
+      select.innerHTML = '<option>No hay eventos</option>';
+    } else {
+      events.forEach(ev => {
+        const opt = document.createElement('option');
+        opt.value = ev.id;
+        opt.textContent = ev.name + ' [' + ev.status + '] (' + (ev.currentRegistrations || 0) + '/' + ev.maxCapacity + ')';
+        select.appendChild(opt);
+      });
+      select.disabled = false;
+      document.getElementById('runBtn').disabled = false;
+      print('OK Eventos cargados: ' + events.length, 'ok');
+    }
+    document.getElementById('loginBtn').disabled = true;
+  } catch (e) {
+    print('ERROR login: ' + e.message, 'err');
+  }
+}
+
+window.run = async function() {
+  const raw = document.getElementById('players').value.trim();
+  if (!raw) { alert('Pegá los jugadores'); return; }
+
+  const eventId = document.getElementById('eventSelect').value;
+  const event = events.find(e => e.id === eventId);
+  if (!event) { alert('Elegí un evento'); return; }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+  const players = [];
+  for (const line of lines) {
+    const parts = line.split('|').map(p => p.trim());
+    if (parts.length !== 4) {
+      print('Linea invalida (debe tener 4 campos): ' + line, 'warn');
+      continue;
+    }
+    const [firstName, lastName, email, position] = parts;
+    if (!['drive', 'reves', 'indistinto'].includes(position)) {
+      print('Posicion invalida "' + position + '" en: ' + line, 'warn');
+      continue;
+    }
+    players.push({ firstName, lastName, email, position });
+  }
+
+  if (players.length === 0) { print('Sin jugadores validos', 'warn'); return; }
+
+  print('', '');
+  print('Evento: ' + event.name + ' (id: ' + event.id + ')', 'info');
+  print('Jugadores a procesar: ' + players.length, 'info');
+  print('---', '');
+
+  document.getElementById('runBtn').disabled = true;
+
+  let registeredCount = 0;
+  const now = Timestamp.now();
+
+  for (const player of players) {
+    const displayName = player.firstName + ' ' + player.lastName;
+    print('>>> ' + displayName + ' (' + player.email + ')', 'info');
+
+    let uid = null;
+
+    // 1. Try to create auth user via secondary app
+    const secondary = initializeApp(firebaseConfig, 'secondary-' + Date.now());
+    const secondaryAuth = getAuth(secondary);
+
+    try {
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, player.email, randomPassword());
+      uid = cred.user.uid;
+      print('  ✓ Auth creado (uid: ' + uid + ')', 'ok');
+    } catch (e) {
+      if (e.code === 'auth/email-already-in-use') {
+        print('  ! Auth ya existe, buscando uid en Firestore...', 'warn');
+        uid = await findUserIdByEmail(player.email).catch(() => null);
+        if (uid) {
+          print('  ✓ Uid encontrado en Firestore: ' + uid, 'ok');
+        } else {
+          print('  ✗ No se pudo recuperar el uid. Este jugador queda sin inscribir.', 'err');
+          await signOut(secondaryAuth).catch(() => {});
+          await deleteApp(secondary).catch(() => {});
+          continue;
+        }
+      } else {
+        print('  ✗ Auth error: ' + e.code + ' - ' + e.message, 'err');
+        await deleteApp(secondary).catch(() => {});
+        continue;
+      }
+    }
+
+    await signOut(secondaryAuth).catch(() => {});
+    await deleteApp(secondary).catch(() => {});
+
+    // 2. Create/update user doc in Firestore
+    try {
+      await setDoc(doc(db, 'users', uid), {
+        email: player.email,
+        displayName,
+        firstName: player.firstName,
+        lastName: player.lastName,
+        position: player.position,
+        role: 'player',
+        adminCreated: true,
+        createdAt: now,
+        updatedAt: now,
+      }, { merge: true });
+      print('  ✓ Perfil creado/actualizado', 'ok');
+    } catch (e) {
+      print('  ✗ Perfil error: ' + e.message, 'err');
+      continue;
+    }
+
+    // 3. Check if already registered for this event
+    let alreadyRegistered = false;
+    try {
+      const dupQuery = query(
+        collection(db, 'registrations'),
+        where('eventId', '==', eventId),
+        where('userId', '==', uid),
+        where('status', '==', 'active')
+      );
+      const dupSnap = await getDocs(dupQuery);
+      if (!dupSnap.empty) {
+        print('  ! Ya estaba inscripto, saltando', 'warn');
+        alreadyRegistered = true;
+      }
+    } catch (e) {
+      print('  ⚠ No pude verificar duplicados: ' + e.message, 'warn');
+    }
+
+    if (alreadyRegistered) continue;
+
+    // 4. Register to event
+    try {
+      const regRef = await addDoc(collection(db, 'registrations'), {
+        eventId,
+        userId: uid,
+        userName: displayName,
+        userPosition: player.position,
+        paymentStatus: 'pending',
+        status: 'active',
+        createdAt: now,
+        updatedAt: now,
+      });
+      registeredCount++;
+      print('  ✓ INSCRIPTO (reg id: ' + regRef.id + ')', 'ok');
+    } catch (e) {
+      print('  ✗ Inscripcion error: ' + e.message, 'err');
+    }
+  }
+
+  // 5. Update event counter
+  if (registeredCount > 0) {
+    try {
+      const newCount = (event.currentRegistrations || 0) + registeredCount;
+      await updateDoc(doc(db, 'events', eventId), {
+        currentRegistrations: newCount,
+        updatedAt: now,
+      });
+      print('', '');
+      print('Contador del evento actualizado: ' + newCount + '/' + event.maxCapacity, 'ok');
+    } catch (e) {
+      print('✗ Error actualizando contador: ' + e.message, 'err');
+    }
+  }
+
+  print('', '');
+  print('================================', 'info');
+  print('Jugadores nuevos inscriptos: ' + registeredCount, 'ok');
+  print('================================', 'info');
+  document.getElementById('runBtn').disabled = false;
+}
+</script>
+</body>
+</html>
