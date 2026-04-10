@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Calendar, MapPin, Users, DollarSign, Bell, Trophy } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
+import { Calendar, MapPin, Users, DollarSign, Bell, Trophy, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { getEvent } from '../services/eventService';
@@ -201,65 +201,50 @@ export function EventDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      <Link to="/" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mb-4">
+        <ChevronLeft className="h-4 w-4" />
+        Eventos disponibles
+      </Link>
       <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <h1 className="text-2xl font-bold">{event.name}</h1>
+        <CardContent className="py-4">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <h1 className="text-xl font-bold">{event.name}</h1>
             <Badge className={EVENT_STATUS_COLORS[event.status]}>
               {EVENT_STATUSES[event.status]}
             </Badge>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 mb-6">
-            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
-              <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              <div>
-                <p className="text-sm text-gray-400 dark:text-gray-500">Fecha y hora</p>
-                <p className="font-medium text-gray-900 dark:text-gray-100">
-                  {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
-              <MapPin className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              <div>
-                <p className="text-sm text-gray-400 dark:text-gray-500">Lugar</p>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{event.location}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
-              <Users className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              <div>
-                <p className="text-sm text-gray-400 dark:text-gray-500">Inscriptos</p>
-                <p className="font-medium text-gray-900 dark:text-gray-100">
-                  {event.currentRegistrations}/{event.maxCapacity}
-                  {spotsLeft > 0 && <span className="text-green-600 dark:text-green-400 ml-2">({spotsLeft} disponibles)</span>}
-                  {isFull && <span className="text-red-600 dark:text-red-400 ml-2">(Completo)</span>}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
-              <DollarSign className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              <div>
-                <p className="text-sm text-gray-400 dark:text-gray-500">Precio</p>
-                <p className="font-medium text-gray-900 dark:text-gray-100">${formatPrice(event.price)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400 sm:col-span-2">
-              <Trophy className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              <div>
-                <p className="text-sm text-gray-400 dark:text-gray-500">Tipo de torneo</p>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{TOURNAMENT_TYPES[event.tournamentType || 'americano']}</p>
-              </div>
-            </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 dark:text-gray-400 mb-3">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+              {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} · {event.time}
+            </span>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+              {event.location}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 dark:text-gray-400 mb-3">
+            <span className="flex items-center gap-1.5">
+              <Trophy className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+              {TOURNAMENT_TYPES[event.tournamentType || 'americano']}
+            </span>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <span className="flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+              {event.currentRegistrations}/{event.maxCapacity}
+              {spotsLeft > 0 && <span className="text-green-600 dark:text-green-400 ml-1">({spotsLeft} disp.)</span>}
+              {isFull && <span className="text-red-600 dark:text-red-400 ml-1">(Completo)</span>}
+            </span>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <span className="flex items-center gap-1.5">
+              <DollarSign className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+              {formatPrice(event.price)}
+            </span>
           </div>
 
           {event.description && (
-            <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-400 dark:text-gray-500 mb-1">Descripción</h3>
-              <p className="text-gray-700 dark:text-gray-300">{event.description}</p>
-            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{event.description}</p>
           )}
 
           <div className="flex gap-3">
@@ -280,7 +265,7 @@ export function EventDetailPage() {
               </Button>
             )}
             {isRegistered && (
-              <Badge className="bg-green-100 text-green-700 self-center">Ya estás inscripto</Badge>
+              <Badge className="bg-green-800 text-green-200 self-center py-1 px-4">😊 Ya estás inscripto</Badge>
             )}
           </div>
         </CardContent>
@@ -288,7 +273,7 @@ export function EventDetailPage() {
 
       {/* Mensaje si está inscripto pero no pagó */}
       {isRegistered && !hasPaid && (
-        <div className="mt-6 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-300">
+        <div className="mt-6 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-300">
           Ya estás inscripto, pero todavía figurás como <strong>pago pendiente</strong>. Una vez que el organizador confirme tu pago, vas a poder ver los inscriptos, parejas, partidos y posiciones del torneo.
         </div>
       )}
@@ -301,11 +286,10 @@ export function EventDetailPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === tab.key
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
+                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === tab.key
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -472,9 +456,9 @@ export function EventDetailPage() {
                           const isMine = isLibre
                             ? s.id === appUser?.id
                             : (() => {
-                                const p = pairs.find(pr => pr.id === s.id);
-                                return !!(p && (p.player1Id === appUser?.id || p.player2Id === appUser?.id));
-                              })();
+                              const p = pairs.find(pr => pr.id === s.id);
+                              return !!(p && (p.player1Id === appUser?.id || p.player2Id === appUser?.id));
+                            })();
                           return (
                             <tr key={s.id} className={`border-b border-gray-100 dark:border-gray-700 ${isMine ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
                               <td className="py-2.5">

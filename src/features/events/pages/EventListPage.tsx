@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Users, DollarSign } from 'lucide-react';
+import { Calendar, MapPin, Users, DollarSign, Trophy, User } from 'lucide-react';
 import { getEvents } from '../services/eventService';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { EVENT_STATUSES, EVENT_STATUS_COLORS } from '@/utils/constants';
+import { EVENT_STATUSES, EVENT_STATUS_COLORS, TOURNAMENT_TYPES } from '@/utils/constants';
 import { formatPrice } from '@/utils/format';
 import type { PadelEvent } from '@/types';
 
@@ -39,7 +39,7 @@ export function EventListPage() {
               <Card className="hover:shadow-md transition-shadow h-full">
                 <CardContent className="pt-4">
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="font-semibold text-lg">{event.name}</h3>
+                    <h3 className="font-semibold text-md">{event.name}</h3>
                     <Badge className={EVENT_STATUS_COLORS[event.status]}>
                       {EVENT_STATUSES[event.status]}
                     </Badge>
@@ -63,6 +63,16 @@ export function EventListPage() {
                       <DollarSign className="h-4 w-4" />
                       <span>${formatPrice(event.price)}</span>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-4 w-4" />
+                      <span>{TOURNAMENT_TYPES[event.tournamentType || 'americano']}</span>
+                    </div>
+                    {(event.createdByName || event.createdByEmail) && (
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <span>Organizador: {event.createdByName || event.createdByEmail}</span>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

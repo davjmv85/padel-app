@@ -61,7 +61,7 @@ export function EventFormPage() {
         toast.success('Evento actualizado');
         navigate(`/admin/events/${eventId}`);
       } else {
-        const id = await createEvent(data, appUser.id, appUser.email);
+        const id = await createEvent(data, appUser.id, appUser.email, appUser.displayName);
         toast.success('Evento creado');
         navigate(`/admin/events/${id}`);
       }

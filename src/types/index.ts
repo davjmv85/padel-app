@@ -48,6 +48,7 @@ export interface PadelEvent {
   currentRegistrations: number;
   createdBy: string;
   createdByEmail?: string;
+  createdByName?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

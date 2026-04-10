@@ -17,7 +17,7 @@ import type { PadelEvent, EventFormData } from '@/types';
 
 const eventsRef = collection(db, 'events');
 
-export async function createEvent(data: EventFormData, userId: string, userEmail: string): Promise<string> {
+export async function createEvent(data: EventFormData, userId: string, userEmail: string, userName: string): Promise<string> {
   const docRef = await addDoc(eventsRef, {
     ...data,
     tournamentType: data.tournamentType || 'americano',
@@ -25,6 +25,7 @@ export async function createEvent(data: EventFormData, userId: string, userEmail
     currentRegistrations: 0,
     createdBy: userId,
     createdByEmail: userEmail,
+    createdByName: userName,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

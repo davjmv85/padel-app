@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Pencil, MoreVertical, Check, Clock, UserMinus, Trash2 } from 'lucide-react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Pencil, MoreVertical, Check, Clock, UserMinus, Trash2, ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getEvent } from '../services/eventService';
 import { getEventRegistrations, cancelRegistration, updatePaymentStatus } from '@/features/registrations/services/registrationService';
@@ -496,6 +496,10 @@ export function AdminEventDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      <Link to="/admin/events" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mb-4">
+        <ChevronLeft className="h-4 w-4" />
+        Gestión de eventos
+      </Link>
       {isFinished && (
         <div className="mb-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-300">
           Este evento está <strong>finalizado</strong>. Para modificar inscriptos, parejas o resultados, primero cambiá el estado desde Editar.
@@ -503,7 +507,7 @@ export function AdminEventDetailPage() {
       )}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold">{event.name}</h1>
+          <h1 className="text-xl font-bold">{event.name}</h1>
           <p className="text-gray-500 dark:text-gray-400">
             {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time} | {event.location}
           </p>
@@ -511,14 +515,14 @@ export function AdminEventDetailPage() {
             <span><span className="text-gray-400 dark:text-gray-500">Tipo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{TOURNAMENT_TYPES[event.tournamentType || 'americano']}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Cupo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.currentRegistrations}/{event.maxCapacity}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Precio:</span> <span className="font-medium text-gray-700 dark:text-gray-300">${formatPrice(event.price)}</span></span>
-            <span><span className="text-gray-400 dark:text-gray-500">Creador:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.createdByEmail || event.createdBy}</span></span>
+            <span><span className="text-gray-400 dark:text-gray-500">Organizador:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.createdByName || event.createdByEmail || event.createdBy}</span></span>
           </div>
           {event.description && <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{event.description}</p>}
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <Badge className={EVENT_STATUS_COLORS[event.status]}>{EVENT_STATUSES[event.status]}</Badge>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/admin/events/${eventId}/edit`)}>
-            <Pencil className="h-4 w-4 mr-1" /> Editar
+            <Pencil className="h-4 w-4 " />
           </Button>
         </div>
       </div>
@@ -529,7 +533,7 @@ export function AdminEventDetailPage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
               activeTab === tab.key
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
@@ -979,7 +983,7 @@ function RegistrationKebab({
       <button
         onClick={() => setOpen(!open)}
         disabled={disabled}
-        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
       </button>
@@ -987,14 +991,14 @@ function RegistrationKebab({
         <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
           <button
             onClick={() => { onTogglePayment(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
           >
             {paymentStatus === 'paid' ? <Clock className="h-4 w-4" /> : <Check className="h-4 w-4" />}
             {paymentStatus === 'paid' ? 'Marcar pendiente' : 'Marcar pagado'}
           </button>
           <button
             onClick={() => { onUnregister(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
           >
             <UserMinus className="h-4 w-4" />
             Dar de baja
@@ -1032,7 +1036,7 @@ function MatchKebab({
       <button
         onClick={() => setOpen(!open)}
         disabled={disabled}
-        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
       </button>
@@ -1040,14 +1044,14 @@ function MatchKebab({
         <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
           <button
             onClick={() => { onLoadResult(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
           >
             <Pencil className="h-4 w-4" />
             {hasResult ? 'Editar resultado' : 'Cargar resultado'}
           </button>
           <button
             onClick={() => { onDelete(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
           >
             <Trash2 className="h-4 w-4" />
             Borrar partido

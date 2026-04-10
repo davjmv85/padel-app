@@ -59,7 +59,7 @@ export function AppLayout() {
     <div className="min-h-screen bg-gray-50 dark:bg-[#101828]">
       {/* Mobile header */}
       <div className="lg:hidden flex items-center justify-between bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
-        <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100">
+        <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100 cursor-pointer">
           <Menu className="h-6 w-6" />
         </button>
         <Link to={homePath}>
@@ -133,7 +133,7 @@ function SidebarContent({
           <img src="/logo.svg" alt="Px4Dx3L Hub" className="h-12 mx-auto" />
         </Link>
         {onClose && (
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 lg:hidden">
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 lg:hidden cursor-pointer">
             <X className="h-5 w-5" />
           </button>
         )}
@@ -160,7 +160,7 @@ function SidebarContent({
         <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 truncate">{userName}</div>
         <button
           onClick={onLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 w-full transition-colors"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 w-full transition-colors cursor-pointer"
         >
           <LogOut className="h-5 w-5" />
           Cerrar sesión
