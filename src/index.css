@@ -38,7 +38,7 @@
 .padel-court-bg::after {
   content: '';
   position: absolute;
-  top: 65.7%;
+  top: 65.6%;
   left: 50%;
   width: 5px;
   bottom: 0;
@@ -58,8 +58,8 @@
 /* Padel ball */
 .padel-ball {
   position: absolute;
-  bottom: 18%;
-  right: 30%;
+  bottom: 30%;
+  right: 40%;
   width: 22px;
   height: 22px;
   border-radius: 50%;
