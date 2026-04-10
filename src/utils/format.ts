@@ -7,6 +7,15 @@ export function formatPrice(value: number): string {
 }
 
 /**
+ * Returns the user's display name: nickname if set, else "First Last".
+ */
+export function buildDisplayName(firstName: string, lastName: string, nickname?: string): string {
+  const nick = nickname?.trim();
+  if (nick) return nick;
+  return `${firstName} ${lastName}`.trim();
+}
+
+/**
  * Calculate the inverse of a padel score.
  * Example: "6-4 6-3" → "4-6 3-6"
  */

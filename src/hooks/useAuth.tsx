@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { buildDisplayName } from '@/utils/format';
 import type { AppUser, UserRole } from '@/types';
 
 interface AuthContextType {
@@ -21,7 +22,7 @@ interface AuthContextType {
   appUser: AppUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string, position: string) => Promise<void>;
+  register: (email: string, password: string, firstName: string, lastName: string, position: string, nickname?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -62,13 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const register = async (email: string, password: string, firstName: string, lastName: string, position: string) => {
+  const register = async (email: string, password: string, firstName: string, lastName: string, position: string, nickname?: string) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     const userData = {
       email,
-      displayName: `${firstName} ${lastName}`,
+      displayName: buildDisplayName(firstName, lastName, nickname),
       firstName,
       lastName,
+      nickname: nickname?.trim() || null,
       position,
       role: 'player' as UserRole,
       createdAt: serverTimestamp(),

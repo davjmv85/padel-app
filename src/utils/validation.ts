@@ -11,6 +11,7 @@ export const registerSchema = z.object({
   confirmPassword: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
+  nickname: z.string().optional(),
   position: z.enum(['drive', 'reves', 'indistinto']),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden',
@@ -20,6 +21,7 @@ export const registerSchema = z.object({
 export const profileSchema = z.object({
   firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
+  nickname: z.string().optional(),
   position: z.enum(['drive', 'reves', 'indistinto']),
 });
 

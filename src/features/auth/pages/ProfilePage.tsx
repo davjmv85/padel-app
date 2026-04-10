@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, updateDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { PLAYER_POSITIONS, ROLES } from '@/utils/constants';
+import { buildDisplayName } from '@/utils/format';
 import { Badge } from '@/components/ui/Badge';
 import type { ProfileFormData } from '@/types';
 
@@ -23,6 +24,7 @@ export function ProfilePage() {
     defaultValues: {
       firstName: appUser?.firstName || '',
       lastName: appUser?.lastName || '',
+      nickname: appUser?.nickname || '',
       position: appUser?.position || 'indistinto',
     },
   });
@@ -31,11 +33,38 @@ export function ProfilePage() {
     if (!appUser) return;
     setLoading(true);
     try {
+      const nickname = data.nickname?.trim() || null;
+      const newDisplayName = buildDisplayName(data.firstName, data.lastName, data.nickname);
       await updateDoc(doc(db, 'users', appUser.id), {
-        ...data,
-        displayName: `${data.firstName} ${data.lastName}`,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        nickname,
+        position: data.position,
+        displayName: newDisplayName,
         updatedAt: serverTimestamp(),
       });
+
+      // Update cached userName in active registrations so the change shows up in events
+      try {
+        const regQuery = query(
+          collection(db, 'registrations'),
+          where('userId', '==', appUser.id),
+          where('status', '==', 'active')
+        );
+        const regSnap = await getDocs(regQuery);
+        await Promise.all(
+          regSnap.docs.map(d =>
+            updateDoc(d.ref, {
+              userName: newDisplayName,
+              userPosition: data.position,
+              updatedAt: serverTimestamp(),
+            })
+          )
+        );
+      } catch (err) {
+        console.error('Error updating registrations cache:', err);
+      }
+
       toast.success('Perfil actualizado');
     } catch {
       toast.error('Error al actualizar el perfil');
@@ -66,6 +95,7 @@ export function ProfilePage() {
               <Input label="Nombre" {...register('firstName')} error={errors.firstName?.message} />
               <Input label="Apellido" {...register('lastName')} error={errors.lastName?.message} />
             </div>
+            <Input label="Apodo (opcional)" placeholder="Se usa como nombre visible si lo completás" {...register('nickname')} error={errors.nickname?.message} />
             <Select label="Posición" options={positionOptions} {...register('position')} error={errors.position?.message} />
             <Button type="submit" loading={loading}>
               Guardar cambios

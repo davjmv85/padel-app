@@ -26,7 +26,7 @@ export function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     setLoading(true);
     try {
-      await registerUser(data.email, data.password, data.firstName, data.lastName, data.position);
+      await registerUser(data.email, data.password, data.firstName, data.lastName, data.position, data.nickname);
       toast.success('Cuenta creada. Te enviamos un email para verificarla. Revisá tus correos no deseados / spam si no lo encontrás.', { duration: 6000 });
       navigate('/');
     } catch {
@@ -53,6 +53,7 @@ export function RegisterPage() {
                 <Input label="Nombre" {...register('firstName')} error={errors.firstName?.message} />
                 <Input label="Apellido" {...register('lastName')} error={errors.lastName?.message} />
               </div>
+              <Input label="Apodo (opcional)" placeholder="Cómo querés que te vean" {...register('nickname')} error={errors.nickname?.message} />
               <Input label="Email" type="email" {...register('email')} error={errors.email?.message} />
               <Input label="Contraseña" type="password" {...register('password')} error={errors.password?.message} />
               <Input label="Confirmar contraseña" type="password" {...register('confirmPassword')} error={errors.confirmPassword?.message} />

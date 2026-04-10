@@ -25,6 +25,7 @@ export interface AppUser {
   displayName: string;
   firstName: string;
   lastName: string;
+  nickname?: string;
   position: PlayerPosition;
   role: UserRole;
   photoURL?: string;
@@ -134,6 +135,7 @@ export interface EventFormData {
 export interface ProfileFormData {
   firstName: string;
   lastName: string;
+  nickname?: string;
   position: PlayerPosition;
 }
 
@@ -143,6 +145,7 @@ export interface RegisterFormData {
   confirmPassword: string;
   firstName: string;
   lastName: string;
+  nickname?: string;
   position: PlayerPosition;
 }
 

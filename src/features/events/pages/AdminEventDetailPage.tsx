@@ -180,25 +180,84 @@ export function AdminEventDetailPage() {
     }
     setPairLoading(true);
     try {
+      // In libre mode, avoid repeating pairs from ANY previous fecha
+      const pairKey = (a: string, b: string) => [a, b].sort().join('|');
+      const forbiddenKeys = new Set(
+        round != null ? pairs.map(p => pairKey(p.player1Id, p.player2Id)) : []
+      );
+
       const shuffle = <T,>(arr: T[]) => arr.map(v => [Math.random(), v] as const).sort((a, b) => a[0] - b[0]).map(([, v]) => v);
       const drives = shuffle(pool.filter(p => p.userPosition === 'drive'));
       const reves = shuffle(pool.filter(p => p.userPosition === 'reves'));
       const indistintos = shuffle(pool.filter(p => p.userPosition === 'indistinto'));
 
-      const newPairs: [typeof pool[0], typeof pool[0]][] = [];
-      while (drives.length > 0 && reves.length > 0) newPairs.push([drives.pop()!, reves.pop()!]);
+      type Player = typeof pool[0];
+      const newPairs: [Player, Player][] = [];
+
+      const tryPair = (a: Player, bList: Player[]): Player | null => {
+        // Find first player in bList that doesn't form a forbidden pair with a
+        const idx = bList.findIndex(b => !forbiddenKeys.has(pairKey(a.userId, b.userId)));
+        if (idx === -1) return null;
+        const [picked] = bList.splice(idx, 1);
+        forbiddenKeys.add(pairKey(a.userId, picked.userId));
+        return picked;
+      };
+
+      // Step 1: drive + reves (skipping forbidden combos)
+      const leftoverDrives: Player[] = [];
+      while (drives.length > 0 && reves.length > 0) {
+        const d = drives.pop()!;
+        const r = tryPair(d, reves);
+        if (r) newPairs.push([d, r]);
+        else leftoverDrives.push(d);
+      }
+      // Put leftover drives back so step 2 can pair them with indistintos
+      drives.push(...leftoverDrives);
+
+      // Step 2: leftover (drive or reves) + indistinto
+      const leftoverMain: Player[] = [];
       while ((drives.length > 0 || reves.length > 0) && indistintos.length > 0) {
         const main = drives.length > 0 ? drives.pop()! : reves.pop()!;
-        newPairs.push([main, indistintos.pop()!]);
+        const i = tryPair(main, indistintos);
+        if (i) newPairs.push([main, i]);
+        else leftoverMain.push(main);
       }
-      while (indistintos.length >= 2) newPairs.push([indistintos.pop()!, indistintos.pop()!]);
-      while (drives.length >= 2) newPairs.push([drives.pop()!, drives.pop()!]);
-      while (reves.length >= 2) newPairs.push([reves.pop()!, reves.pop()!]);
+
+      // Step 3: indistinto + indistinto
+      while (indistintos.length >= 2) {
+        const a = indistintos.pop()!;
+        const b = tryPair(a, indistintos);
+        if (b) newPairs.push([a, b]);
+        else leftoverMain.push(a);
+      }
+
+      // Step 4: same position (last resort) — also checking forbidden
+      const tryPairFromList = (list: Player[]) => {
+        while (list.length >= 2) {
+          const a = list.pop()!;
+          const b = tryPair(a, list);
+          if (b) newPairs.push([a, b]);
+          else leftoverMain.push(a);
+        }
+      };
+      tryPairFromList(drives);
+      tryPairFromList(reves);
+
+      if (newPairs.length === 0) {
+        toast.error('No se pudo armar ninguna pareja nueva (todas las combinaciones posibles ya existen en fechas anteriores)');
+        return;
+      }
 
       for (const [p1, p2] of newPairs) {
         await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName, round);
       }
-      toast.success(`${newPairs.length} parejas creadas`);
+
+      const skipped = pool.length - (newPairs.length * 2);
+      if (skipped > 0) {
+        toast.success(`${newPairs.length} parejas creadas. ${skipped} jugadores quedaron sin pareja (posibles combinaciones agotadas).`);
+      } else {
+        toast.success(`${newPairs.length} parejas creadas`);
+      }
       await loadData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al armar parejas');
