@@ -63,6 +63,7 @@ export function EventDetailPage() {
   if (loading || !event) return <Spinner />;
 
   const isRegistered = !!myRegistration;
+  const hasPaid = myRegistration?.paymentStatus === 'paid';
   const isFull = event.currentRegistrations >= event.maxCapacity;
   const canRegister = event.status === 'published' && !isRegistered && !isFull;
   const spotsLeft = event.maxCapacity - event.currentRegistrations;
@@ -251,8 +252,15 @@ export function EventDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Tabs visible solo si el jugador está inscripto */}
-      {isRegistered && (
+      {/* Mensaje si está inscripto pero no pagó */}
+      {isRegistered && !hasPaid && (
+        <div className="mt-6 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-300">
+          Ya estás inscripto, pero todavía figurás como <strong>pago pendiente</strong>. Una vez que el organizador confirme tu pago, vas a poder ver los inscriptos, parejas, partidos y posiciones del torneo.
+        </div>
+      )}
+
+      {/* Tabs visibles solo si el jugador está inscripto Y pagó */}
+      {isRegistered && hasPaid && (
         <div className="mt-6">
           <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto">
             {tabs.map(tab => (
