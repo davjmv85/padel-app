@@ -7,6 +7,8 @@ import {
   GoogleAuthProvider,
   signOut,
   sendPasswordResetEmail,
+  sendEmailVerification,
+  reload,
   type User,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -22,6 +24,9 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  resendVerification: () => Promise<void>;
+  reloadUser: () => Promise<void>;
+  isEmailVerified: boolean;
   isAdmin: boolean;
   isCollaborator: boolean;
   isStaff: boolean;
@@ -70,6 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     await setDoc(doc(db, 'users', cred.user.uid), userData);
     setAppUser({ id: cred.user.uid, ...userData } as unknown as AppUser);
+    // Send verification email
+    try {
+      await sendEmailVerification(cred.user);
+    } catch (err) {
+      console.error('Error sending verification email:', err);
+    }
   };
 
   const loginWithGoogle = async () => {
@@ -103,13 +114,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
+  const resendVerification = async () => {
+    if (!user) throw new Error('No hay usuario logueado');
+    await sendEmailVerification(user);
+  };
+
+  const reloadUser = async () => {
+    if (!user) return;
+    await reload(user);
+    setUser({ ...user });
+  };
+
   const role = appUser?.role;
   const isAdmin = role === 'admin';
   const isCollaborator = role === 'collaborator';
   const isStaff = isAdmin || isCollaborator;
+  // Verified if Firebase says so OR if the account was admin-created (seed)
+  const isEmailVerified = !!(user?.emailVerified || appUser?.adminCreated);
 
   return (
-    <AuthContext.Provider value={{ user, appUser, loading, login, register, loginWithGoogle, logout, resetPassword, isAdmin, isCollaborator, isStaff }}>
+    <AuthContext.Provider value={{ user, appUser, loading, login, register, loginWithGoogle, logout, resetPassword, resendVerification, reloadUser, isEmailVerified, isAdmin, isCollaborator, isStaff }}>
       {children}
     </AuthContext.Provider>
   );

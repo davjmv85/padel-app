@@ -2,130 +2,253 @@
 <html>
 <head><title>Seed Players</title>
 <style>
-  body { font-family: system-ui; padding: 20px; max-width: 600px; margin: 0 auto; }
-  button { padding: 12px 24px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; }
+  body { font-family: system-ui; padding: 20px; max-width: 720px; margin: 0 auto; background: #0d2147; color: #e2e8f0; }
+  h2 { color: #60a5fa; }
+  button { padding: 12px 24px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
   button:disabled { opacity: 0.5; }
-  pre { background: #111; color: #4ade80; padding: 16px; border-radius: 8px; font-size: 13px; overflow-x: auto; white-space: pre-wrap; max-height: 70vh; overflow-y: auto; }
+  pre { background: #000; color: #4ade80; padding: 16px; border-radius: 8px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; max-height: 60vh; overflow-y: auto; }
+  textarea { width: 100%; padding: 10px; font-size: 13px; border: 1px solid #334155; border-radius: 6px; font-family: monospace; background: #1e293b; color: #e2e8f0; }
+  label { font-size: 13px; font-weight: 600; display: block; margin: 12px 0 4px; color: #94a3b8; }
+  .hint { font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 4px; }
+  select { padding: 8px 12px; font-size: 14px; border-radius: 6px; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
 </style>
 </head>
 <body>
-<h2>Seed: 12 jugadores + inscripcion</h2>
-<p>Login con Google, despues se crean los jugadores y se inscriben al evento publicado.</p>
-<button id="btn" onclick="run()">Login con Google + Crear jugadores</button>
+<h2>Crear jugadores e inscribirlos al evento</h2>
+
+<p>1. Logueate con tu cuenta admin de Google.<br>
+2. Pegá la lista de jugadores en el formato indicado.<br>
+3. Elegí el evento donde inscribirlos.<br>
+4. Ejecutá.</p>
+
+<label>Lista de jugadores (uno por línea)</label>
+<textarea id="players" rows="14" placeholder="Formato: Nombre|Apellido|email@real.com|posicion
+
+Donde posicion es una de: drive, reves, indistinto
+
+Ejemplo:
+Martin|Gonzalez|martin@gmail.com|drive
+Lucas|Rodriguez|lucas@gmail.com|reves
+Federico|Lopez|fede@gmail.com|indistinto"></textarea>
+<p class="hint">Separá cada campo con "|" (pipe). Posicion: drive, reves o indistinto.</p>
+
+<div>
+  <label>Evento</label>
+  <select id="eventSelect" disabled>
+    <option>Primero logueate para listar eventos</option>
+  </select>
+</div>
+
+<div style="margin-top: 20px;">
+  <button id="loginBtn" onclick="doLogin()">1. Login con Google</button>
+  <button id="runBtn" onclick="run()" disabled>2. Crear e inscribir</button>
+</div>
+
 <pre id="log"></pre>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, setDoc, addDoc, updateDoc, collection, query, where, getDocs, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-const app = initializeApp({
-  apiKey: "AIzaSyDdynYpSpw5R3MI5WTsjmQ_cDIuByqgUhc",
-  authDomain: "padel-app-x4-685d9.firebaseapp.com",
-  projectId: "padel-app-x4-685d9",
-  storageBucket: "padel-app-x4-685d9.firebasestorage.app",
-  messagingSenderId: "242912107432",
-  appId: "1:242912107432:web:b90ea78269e5b625ae5b9d"
-});
+const firebaseConfig = {
+  apiKey: "AIzaSyB0c3F_2UxWu0rwpNBIC61mE1EWB6xExNQ",
+  authDomain: "padel-hub-4b3a0.firebaseapp.com",
+  projectId: "padel-hub-4b3a0",
+  storageBucket: "padel-hub-4b3a0.firebasestorage.app",
+  messagingSenderId: "546100517843",
+  appId: "1:546100517843:web:f2f2223eb0e5dadd8e6d26"
+};
 
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const logEl = document.getElementById('log');
 function print(msg) { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
 
-const players = [
-  { firstName: 'Martin', lastName: 'Gonzalez', position: 'drive', email: 'martin.gonzalez@test.com' },
-  { firstName: 'Lucas', lastName: 'Rodriguez', position: 'reves', email: 'lucas.rodriguez@test.com' },
-  { firstName: 'Federico', lastName: 'Lopez', position: 'drive', email: 'fede.lopez@test.com' },
-  { firstName: 'Santiago', lastName: 'Martinez', position: 'indistinto', email: 'santi.martinez@test.com' },
-  { firstName: 'Nicolas', lastName: 'Garcia', position: 'reves', email: 'nico.garcia@test.com' },
-  { firstName: 'Tomas', lastName: 'Fernandez', position: 'drive', email: 'tomas.fernandez@test.com' },
-  { firstName: 'Matias', lastName: 'Perez', position: 'indistinto', email: 'matias.perez@test.com' },
-  { firstName: 'Agustin', lastName: 'Sanchez', position: 'reves', email: 'agustin.sanchez@test.com' },
-  { firstName: 'Joaquin', lastName: 'Diaz', position: 'drive', email: 'joaquin.diaz@test.com' },
-  { firstName: 'Sebastian', lastName: 'Torres', position: 'indistinto', email: 'seba.torres@test.com' },
-  { firstName: 'Diego', lastName: 'Ramirez', position: 'reves', email: 'diego.ramirez@test.com' },
-  { firstName: 'Pablo', lastName: 'Alvarez', position: 'drive', email: 'pablo.alvarez@test.com' },
-];
+let adminUid = null;
+let events = [];
+
+function randomPassword() {
+  return 'pdl' + Math.random().toString(36).slice(-10);
+}
+
+window.doLogin = async function() {
+  try {
+    const provider = new GoogleAuthProvider();
+    const cred = await signInWithPopup(auth, provider);
+    adminUid = cred.user.uid;
+    print('OK Login: ' + cred.user.email);
+
+    // Load events (not just published, in case admin wants to seed to draft or other)
+    const snap = await getDocs(collection(db, 'events'));
+    events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const select = document.getElementById('eventSelect');
+    select.innerHTML = '';
+    if (events.length === 0) {
+      select.innerHTML = '<option>No hay eventos</option>';
+    } else {
+      events.forEach(ev => {
+        const opt = document.createElement('option');
+        opt.value = ev.id;
+        opt.textContent = ev.name + ' [' + ev.status + '] (' + (ev.currentRegistrations || 0) + '/' + ev.maxCapacity + ')';
+        select.appendChild(opt);
+      });
+      select.disabled = false;
+      document.getElementById('runBtn').disabled = false;
+      print('OK Eventos cargados: ' + events.length);
+    }
+    document.getElementById('loginBtn').disabled = true;
+  } catch (e) {
+    print('ERROR login: ' + e.message);
+  }
+}
 
 window.run = async function() {
-  document.getElementById('btn').disabled = true;
-  try {
-    const now = Timestamp.now();
+  const raw = document.getElementById('players').value.trim();
+  if (!raw) { alert('Pegá los jugadores'); return; }
 
-    // 1. Login with Google
-    print('Paso 1: Login con Google...');
-    const provider = new GoogleAuthProvider();
-    const adminCred = await signInWithPopup(auth, provider);
-    print('OK: ' + adminCred.user.email);
+  const eventId = document.getElementById('eventSelect').value;
+  const event = events.find(e => e.id === eventId);
+  if (!event) { alert('Elegí un evento'); return; }
 
-    // 2. Find published event
-    print('\nPaso 2: Buscando evento publicado...');
-    const eventsSnap = await getDocs(query(collection(db, 'events'), where('status', '==', 'published')));
-    if (eventsSnap.empty) { print('ERROR: No hay eventos publicados'); return; }
-    const eventId = eventsSnap.docs[0].id;
-    const eventData = eventsSnap.docs[0].data();
-    print('OK: ' + eventData.name + ' (' + eventData.currentRegistrations + '/' + eventData.maxCapacity + ')');
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+  const players = [];
+  for (const line of lines) {
+    const parts = line.split('|').map(p => p.trim());
+    if (parts.length !== 4) {
+      print('Linea invalida (debe tener 4 campos): ' + line);
+      continue;
+    }
+    const [firstName, lastName, email, position] = parts;
+    if (!['drive', 'reves', 'indistinto'].includes(position)) {
+      print('Posicion invalida "' + position + '" en: ' + line);
+      continue;
+    }
+    players.push({ firstName, lastName, email, position });
+  }
 
-    // 3. Sign out admin
-    await signOut(auth);
+  if (players.length === 0) { print('Sin jugadores validos'); return; }
 
-    // 4. Create players and register
-    print('\nPaso 3: Creando jugadores...\n');
-    let registered = 0;
+  print('\nEvento: ' + event.name);
+  print('Jugadores a crear: ' + players.length);
+  print('---\n');
 
-    for (const player of players) {
-      const name = player.firstName + ' ' + player.lastName;
-      let uid;
+  document.getElementById('runBtn').disabled = true;
 
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, player.email, 'padel123');
-        uid = cred.user.uid;
-      } catch (e) {
-        print('X ' + name + ': ' + e.code);
-        await signOut(auth).catch(() => {});
+  let created = 0;
+  let existed = 0;
+  let failed = 0;
+  const successfulUids = [];
+  const now = Timestamp.now();
+
+  for (const player of players) {
+    const displayName = player.firstName + ' ' + player.lastName;
+    print('>>> ' + displayName + ' (' + player.email + ')');
+
+    // Create user via secondary app to avoid hijacking admin session
+    const secondary = initializeApp(firebaseConfig, 'secondary-' + Date.now());
+    const secondaryAuth = getAuth(secondary);
+    let uid;
+
+    try {
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, player.email, randomPassword());
+      uid = cred.user.uid;
+      print('  OK Auth creado');
+      created++;
+    } catch (e) {
+      if (e.code === 'auth/email-already-in-use') {
+        print('  ! Email ya existe en Auth, saltando creacion de auth');
+        existed++;
+        // We can't get the uid easily without logging in. Skip.
+        await signOut(secondaryAuth).catch(() => {});
+        await deleteApp(secondary).catch(() => {});
+        failed++;
         continue;
       }
-
-      try {
-        await setDoc(doc(db, 'users', uid), {
-          email: player.email, displayName: name,
-          firstName: player.firstName, lastName: player.lastName,
-          position: player.position, role: 'player',
-          createdAt: now, updatedAt: now,
-        });
-        await addDoc(collection(db, 'registrations'), {
-          eventId, userId: uid, userName: name,
-          userPosition: player.position, paymentStatus: 'pending',
-          status: 'active', createdAt: now, updatedAt: now,
-        });
-        registered++;
-        print('OK ' + name + ' - inscripto');
-      } catch (e) {
-        print('X ' + name + ': ' + e.message);
-      }
-
-      await signOut(auth);
+      print('  X Auth error: ' + e.code + ' - ' + e.message);
+      await deleteApp(secondary).catch(() => {});
+      failed++;
+      continue;
     }
 
-    // 5. Login admin again to update counter
-    print('\nPaso 4: Actualizando contador...');
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    // Sign out the secondary to avoid leftover session
+    try { await signOut(secondaryAuth); } catch {}
+    try { await deleteApp(secondary); } catch {}
+
+    // Now with admin session, create user doc
+    try {
+      await setDoc(doc(db, 'users', uid), {
+        email: player.email,
+        displayName,
+        firstName: player.firstName,
+        lastName: player.lastName,
+        position: player.position,
+        role: 'player',
+        adminCreated: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      print('  OK Perfil creado');
+    } catch (e) {
+      print('  X Perfil error: ' + e.message);
+      failed++;
+      continue;
+    }
+
+    // Check if already registered
+    try {
+      const dupQuery = query(collection(db, 'registrations'),
+        where('eventId', '==', eventId),
+        where('userId', '==', uid),
+        where('status', '==', 'active')
+      );
+      const dupSnap = await getDocs(dupQuery);
+      if (!dupSnap.empty) {
+        print('  ! Ya inscripto, saltando');
+        successfulUids.push(uid);
+        continue;
+      }
+    } catch {}
+
+    // Register to event
+    try {
+      await addDoc(collection(db, 'registrations'), {
+        eventId,
+        userId: uid,
+        userName: displayName,
+        userPosition: player.position,
+        paymentStatus: 'pending',
+        status: 'active',
+        createdAt: now,
+        updatedAt: now,
+      });
+      print('  OK Inscripto al evento');
+      successfulUids.push(uid);
+    } catch (e) {
+      print('  X Inscripcion error: ' + e.message);
+    }
+  }
+
+  // Update event counter
+  try {
+    const currentCount = (event.currentRegistrations || 0) + successfulUids.length;
     await updateDoc(doc(db, 'events', eventId), {
-      currentRegistrations: eventData.currentRegistrations + registered,
+      currentRegistrations: currentCount,
       updatedAt: now,
     });
-    print('OK: ' + (eventData.currentRegistrations + registered) + '/' + eventData.maxCapacity);
-
-    print('\n================================');
-    print('LISTO! ' + registered + ' jugadores creados e inscriptos');
-    print('Password para todos: padel123');
-    print('================================');
-
+    print('\nContador actualizado: ' + currentCount + '/' + event.maxCapacity);
   } catch (e) {
-    print('\nERROR: ' + e.message);
+    print('\nX Error actualizando contador: ' + e.message);
   }
-  document.getElementById('btn').disabled = false;
+
+  print('\n================================');
+  print('Creados: ' + created);
+  print('Ya existian: ' + existed);
+  print('Fallidos: ' + failed);
+  print('Inscriptos OK: ' + successfulUids.length);
+  print('================================');
+  document.getElementById('runBtn').disabled = false;
 }
 </script>
 </body>

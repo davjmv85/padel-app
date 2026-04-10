@@ -25,6 +25,7 @@ export interface AppUser {
   position: PlayerPosition;
   role: UserRole;
   photoURL?: string;
+  adminCreated?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
