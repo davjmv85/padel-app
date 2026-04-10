@@ -53,6 +53,8 @@ export function AppLayout() {
     navigate('/login');
   };
 
+  const homePath = isStaff ? '/admin' : '/';
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#101828]">
       {/* Mobile header */}
@@ -60,7 +62,9 @@ export function AppLayout() {
         <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100">
           <Menu className="h-6 w-6" />
         </button>
-        <img src="/logo.svg" alt="Px4Dx3L Hub" className="h-12 mx-auto" />
+        <Link to={homePath}>
+          <img src="/logo.svg" alt="Px4Dx3L Hub" className="h-12 mx-auto" />
+        </Link>
         <div className="w-10" />
       </div>
 
@@ -73,6 +77,7 @@ export function AppLayout() {
               navItems={navItems}
               currentPath={location.pathname}
               userName={appUser?.displayName || ''}
+              homePath={homePath}
               onLogout={handleLogout}
               onClose={() => setSidebarOpen(false)}
             />
@@ -87,6 +92,7 @@ export function AppLayout() {
             navItems={navItems}
             currentPath={location.pathname}
             userName={appUser?.displayName || ''}
+            homePath={homePath}
             onLogout={handleLogout}
           />
         </div>
@@ -109,19 +115,23 @@ function SidebarContent({
   navItems,
   currentPath,
   userName,
+  homePath,
   onLogout,
   onClose,
 }: {
   navItems: NavItem[];
   currentPath: string;
   userName: string;
+  homePath: string;
   onLogout: () => void;
   onClose?: () => void;
 }) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-        <img src="/logo.svg" alt="Px4Dx3L Hub" className="h-12 mx-auto" />
+        <Link to={homePath} onClick={onClose}>
+          <img src="/logo.svg" alt="Px4Dx3L Hub" className="h-12 mx-auto" />
+        </Link>
         {onClose && (
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 lg:hidden">
             <X className="h-5 w-5" />

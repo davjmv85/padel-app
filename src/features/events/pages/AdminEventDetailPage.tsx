@@ -483,7 +483,7 @@ export function AdminEventDetailPage() {
             {registrations.length === 0 ? (
               <EmptyState title="Sin inscriptos" description="Todavía no hay jugadores inscriptos en este evento" />
             ) : (
-              <div className="overflow-x-auto">
+              <div className="">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
