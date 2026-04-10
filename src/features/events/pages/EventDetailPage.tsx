@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Calendar, MapPin, Users, DollarSign, Bell } from 'lucide-react';
+import { Calendar, MapPin, Users, DollarSign, Bell, Trophy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { getEvent } from '../services/eventService';
@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { EVENT_STATUSES, EVENT_STATUS_COLORS, PLAYER_POSITIONS } from '@/utils/constants';
+import { EVENT_STATUSES, EVENT_STATUS_COLORS, PLAYER_POSITIONS, TOURNAMENT_TYPES } from '@/utils/constants';
 import { formatPrice, countSets } from '@/utils/format';
 import type { PadelEvent, Registration, EventPair, Match } from '@/types';
 
@@ -246,6 +246,13 @@ export function EventDetailPage() {
                 <p className="font-medium text-gray-900 dark:text-gray-100">${formatPrice(event.price)}</p>
               </div>
             </div>
+            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400 sm:col-span-2">
+              <Trophy className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+              <div>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Tipo de torneo</p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">{TOURNAMENT_TYPES[event.tournamentType || 'americano']}</p>
+              </div>
+            </div>
           </div>
 
           {event.description && (
@@ -336,33 +343,63 @@ export function EventDetailPage() {
           )}
 
           {/* Parejas */}
-          {activeTab === 'pairs' && (
-            <Card>
-              <CardContent className="py-4">
-                {pairs.length === 0 ? (
-                  <EmptyState title="Sin parejas" description="Todavía no se armaron las parejas" />
-                ) : (
+          {activeTab === 'pairs' && (() => {
+            const renderPair = (pair: EventPair, idx: number) => {
+              const p1Pos = registrations.find(r => r.userId === pair.player1Id)?.userPosition;
+              const p2Pos = registrations.find(r => r.userId === pair.player2Id)?.userPosition;
+              const imInPair = pair.player1Id === appUser?.id || pair.player2Id === appUser?.id;
+              return (
+                <div key={pair.id} className={`p-3 rounded-lg ${imInPair ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-700'}`}>
+                  <span className="text-sm font-medium text-gray-400 dark:text-gray-500">{idx + 1}:</span>{' '}
+                  <span className="font-medium">{pair.player1Name}</span>
+                  {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
+                  <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
+                  <span className="font-medium">{pair.player2Name}</span>
+                  {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                </div>
+              );
+            };
+
+            if (pairs.length === 0) {
+              return (
+                <Card><CardContent className="py-4"><EmptyState title="Sin parejas" description="Todavía no se armaron las parejas" /></CardContent></Card>
+              );
+            }
+
+            if (isLibre) {
+              const roundsSet = new Set(pairs.map(p => p.round).filter((r): r is number => r != null));
+              const rounds = Array.from(roundsSet).sort((a, b) => a - b);
+              return (
+                <div className="space-y-6">
+                  {rounds.map(round => {
+                    const pairsInRound = pairs.filter(p => p.round === round);
+                    return (
+                      <div key={round}>
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Fecha {round}</h3>
+                        <Card>
+                          <CardContent className="py-4">
+                            <div className="space-y-2">
+                              {pairsInRound.map((pair, idx) => renderPair(pair, idx))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }
+
+            return (
+              <Card>
+                <CardContent className="py-4">
                   <div className="space-y-2">
-                    {pairs.map((pair, idx) => {
-                      const p1Pos = registrations.find(r => r.userId === pair.player1Id)?.userPosition;
-                      const p2Pos = registrations.find(r => r.userId === pair.player2Id)?.userPosition;
-                      const imInPair = pair.player1Id === appUser?.id || pair.player2Id === appUser?.id;
-                      return (
-                        <div key={pair.id} className={`p-3 rounded-lg ${imInPair ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-700'}`}>
-                          <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Pareja {idx + 1}:</span>{' '}
-                          <span className="font-medium">{pair.player1Name}</span>
-                          {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
-                          <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
-                          <span className="font-medium">{pair.player2Name}</span>
-                          {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
-                        </div>
-                      );
-                    })}
+                    {pairs.map((pair, idx) => renderPair(pair, idx))}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Partidos */}
           {activeTab === 'matches' && (
