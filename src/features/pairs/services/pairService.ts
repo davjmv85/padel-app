@@ -14,25 +14,40 @@ import type { EventPair } from '@/types';
 
 const pairsRef = collection(db, 'event_pairs');
 
-export async function createPair(eventId: string, player1Id: string, player1Name: string, player2Id: string, player2Name: string): Promise<string> {
-  // Validate no duplicates
+export async function createPair(
+  eventId: string,
+  player1Id: string,
+  player1Name: string,
+  player2Id: string,
+  player2Name: string,
+  round?: number
+): Promise<string> {
+  // Validate no duplicates within the same scope
+  // - americano (no round): a player can only be in one pair in the whole event
+  // - libre (with round): a player can only be in one pair per fecha (same round)
   const existing = await getEventPairs(eventId);
-  const usedPlayerIds = new Set(existing.flatMap((p) => [p.player1Id, p.player2Id]));
+  const relevant = round == null
+    ? existing.filter(p => p.round == null)
+    : existing.filter(p => p.round === round);
+  const usedPlayerIds = new Set(relevant.flatMap((p) => [p.player1Id, p.player2Id]));
   if (usedPlayerIds.has(player1Id) || usedPlayerIds.has(player2Id)) {
-    throw new Error('Uno o ambos jugadores ya están en otra pareja de este evento');
+    throw new Error('Uno o ambos jugadores ya están en otra pareja de esta fecha');
   }
   if (player1Id === player2Id) {
     throw new Error('Los jugadores deben ser diferentes');
   }
 
-  const docRef = await addDoc(pairsRef, {
+  const payload: Record<string, unknown> = {
     eventId,
     player1Id,
     player1Name,
     player2Id,
     player2Name,
     createdAt: serverTimestamp(),
-  });
+  };
+  if (round != null) payload.round = round;
+
+  const docRef = await addDoc(pairsRef, payload);
   return docRef.id;
 }
 

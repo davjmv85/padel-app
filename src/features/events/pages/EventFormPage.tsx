@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { EVENT_STATUSES } from '@/utils/constants';
+import { EVENT_STATUSES, TOURNAMENT_TYPES } from '@/utils/constants';
 import type { EventFormData } from '@/types';
 
 export function EventFormPage() {
@@ -25,7 +25,7 @@ export function EventFormPage() {
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<EventFormData>({
     resolver: zodResolver(eventSchema) as never,
-    defaultValues: { status: 'draft' },
+    defaultValues: { status: 'draft', tournamentType: 'americano' },
   });
 
   const currentStatus = watch('status');
@@ -44,6 +44,7 @@ export function EventFormPage() {
             price: ev.price,
             description: ev.description || '',
             status: ev.status,
+            tournamentType: ev.tournamentType || 'americano',
           });
         }
         setPageLoading(false);
@@ -72,6 +73,7 @@ export function EventFormPage() {
   };
 
   const statusOptions = Object.entries(EVENT_STATUSES).map(([value, label]) => ({ value, label }));
+  const typeOptions = Object.entries(TOURNAMENT_TYPES).map(([value, label]) => ({ value, label }));
 
   if (pageLoading) return <Spinner />;
 
@@ -100,6 +102,8 @@ export function EventFormPage() {
               <Input label="Precio ($)" type="number" step="0.01" {...register('price')} error={errors.price?.message} disabled={isFinished} />
             </div>
             <Textarea label="Descripción (opcional)" rows={3} {...register('description')} error={errors.description?.message} disabled={isFinished} />
+            <Select label="Tipo de torneo" options={typeOptions} {...register('tournamentType')} error={errors.tournamentType?.message} disabled={isFinished || isEditing} />
+            {isEditing && <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">El tipo de torneo no se puede cambiar una vez creado el evento.</p>}
             <Select label="Estado" options={statusOptions} {...register('status')} error={errors.status?.message} />
             <div className="flex gap-3 pt-2">
               <Button type="submit" loading={loading}>

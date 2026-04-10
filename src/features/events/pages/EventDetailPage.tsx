@@ -114,11 +114,13 @@ export function EventDetailPage() {
     return p ? `${p.player1Name} / ${p.player2Name}` : 'Pareja desconocida';
   };
 
-  // Calculate standings (same logic as admin view)
-  const standings = (() => {
-    const stats: Record<string, { pairId: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
+  const isLibre = event.tournamentType === 'libre';
+
+  // Pair standings (americano)
+  const pairStandings = (() => {
+    const stats: Record<string, { id: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
     pairs.forEach(p => {
-      stats[p.id] = { pairId: p.id, name: `${p.player1Name} / ${p.player2Name}`, played: 0, won: 0, lost: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, points: 0 };
+      stats[p.id] = { id: p.id, name: `${p.player1Name} / ${p.player2Name}`, played: 0, won: 0, lost: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, points: 0 };
     });
     matches.forEach(m => {
       if (!m.winnerId) return;
@@ -127,30 +129,55 @@ export function EventDetailPage() {
       const a = stats[m.pairAId];
       const b = stats[m.pairBId];
       if (!a || !b) return;
-      a.played++;
-      b.played++;
-      a.setsWon += counts.won;
-      a.setsLost += counts.lost;
-      a.gamesWon += counts.gamesWon;
-      a.gamesLost += counts.gamesLost;
-      b.setsWon += counts.lost;
-      b.setsLost += counts.won;
-      b.gamesWon += counts.gamesLost;
-      b.gamesLost += counts.gamesWon;
-      if (m.winnerId === m.pairAId) {
-        a.won++; a.points++; b.lost++;
-      } else if (m.winnerId === m.pairBId) {
-        b.won++; b.points++; a.lost++;
-      }
+      a.played++; b.played++;
+      a.setsWon += counts.won; a.setsLost += counts.lost;
+      a.gamesWon += counts.gamesWon; a.gamesLost += counts.gamesLost;
+      b.setsWon += counts.lost; b.setsLost += counts.won;
+      b.gamesWon += counts.gamesLost; b.gamesLost += counts.gamesWon;
+      if (m.winnerId === m.pairAId) { a.won++; a.points++; b.lost++; }
+      else if (m.winnerId === m.pairBId) { b.won++; b.points++; a.lost++; }
     });
     return Object.values(stats).sort((x, y) => {
       if (y.points !== x.points) return y.points - x.points;
-      const setDiffX = x.setsWon - x.setsLost;
-      const setDiffY = y.setsWon - y.setsLost;
-      if (setDiffY !== setDiffX) return setDiffY - setDiffX;
+      const setDiff = (y.setsWon - y.setsLost) - (x.setsWon - x.setsLost);
+      if (setDiff !== 0) return setDiff;
       return (y.gamesWon - y.gamesLost) - (x.gamesWon - x.gamesLost);
     });
   })();
+
+  // Player standings (libre)
+  const playerStandings = (() => {
+    const stats: Record<string, { id: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
+    const pairMap = new Map(pairs.map(p => [p.id, p]));
+    const initPlayer = (userId: string, userName: string) => {
+      if (!stats[userId]) stats[userId] = { id: userId, name: userName, played: 0, won: 0, lost: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, points: 0 };
+      return stats[userId];
+    };
+    matches.forEach(m => {
+      if (!m.winnerId) return;
+      const counts = countSets(m.scoreA);
+      if (!counts) return;
+      const pairA = pairMap.get(m.pairAId);
+      const pairB = pairMap.get(m.pairBId);
+      if (!pairA || !pairB) return;
+      const playersA = [initPlayer(pairA.player1Id, pairA.player1Name), initPlayer(pairA.player2Id, pairA.player2Name)];
+      const playersB = [initPlayer(pairB.player1Id, pairB.player1Name), initPlayer(pairB.player2Id, pairB.player2Name)];
+      playersA.forEach(p => { p.played++; p.setsWon += counts.won; p.setsLost += counts.lost; p.gamesWon += counts.gamesWon; p.gamesLost += counts.gamesLost; });
+      playersB.forEach(p => { p.played++; p.setsWon += counts.lost; p.setsLost += counts.won; p.gamesWon += counts.gamesLost; p.gamesLost += counts.gamesWon; });
+      const winners = m.winnerId === m.pairAId ? playersA : playersB;
+      const losers = m.winnerId === m.pairAId ? playersB : playersA;
+      winners.forEach(p => { p.won++; p.points++; });
+      losers.forEach(p => { p.lost++; });
+    });
+    return Object.values(stats).sort((x, y) => {
+      if (y.points !== x.points) return y.points - x.points;
+      const setDiff = (y.setsWon - y.setsLost) - (x.setsWon - x.setsLost);
+      if (setDiff !== 0) return setDiff;
+      return (y.gamesWon - y.gamesLost) - (x.gamesWon - x.gamesLost);
+    });
+  })();
+
+  const standings = isLibre ? playerStandings : pairStandings;
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'registrations', label: `Inscriptos (${registrations.length})` },
@@ -387,7 +414,7 @@ export function EventDetailPage() {
                       <thead>
                         <tr className="border-b border-gray-200 dark:border-gray-700">
                           <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400 w-10">#</th>
-                          <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Pareja</th>
+                          <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">{isLibre ? 'Jugador' : 'Pareja'}</th>
                           <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PJ</th>
                           <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PG</th>
                           <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PP</th>
@@ -404,10 +431,15 @@ export function EventDetailPage() {
                         {standings.map((s, idx) => {
                           const setDiff = s.setsWon - s.setsLost;
                           const gameDiff = s.gamesWon - s.gamesLost;
-                          const p = pairs.find(pr => pr.id === s.pairId);
-                          const imInPair = p && (p.player1Id === appUser?.id || p.player2Id === appUser?.id);
+                          // Highlight: pair row if admin view, or player row if libre
+                          const isMine = isLibre
+                            ? s.id === appUser?.id
+                            : (() => {
+                                const p = pairs.find(pr => pr.id === s.id);
+                                return !!(p && (p.player1Id === appUser?.id || p.player2Id === appUser?.id));
+                              })();
                           return (
-                            <tr key={s.pairId} className={`border-b border-gray-100 dark:border-gray-700 ${imInPair ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                            <tr key={s.id} className={`border-b border-gray-100 dark:border-gray-700 ${isMine ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
                               <td className="py-2.5">
                                 <span className={`font-bold ${idx === 0 ? 'text-yellow-500' : idx < 3 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
                                   {idx + 1}

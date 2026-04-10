@@ -32,4 +32,5 @@ export const eventSchema = z.object({
   price: z.coerce.number().min(0, 'El precio no puede ser negativo'),
   description: z.string().optional(),
   status: z.enum(['draft', 'published', 'closed', 'finished', 'cancelled']),
+  tournamentType: z.enum(['americano', 'libre']),
 });

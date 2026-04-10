@@ -66,7 +66,7 @@ export function VerifyEmailPage() {
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                 Abrí el mail y hacé click en el link para activar tu cuenta.
               </p>
-              <p className="text-sm text-gray-200 dark:text-gray-700 mt-3">
+              <p className="text-sm text-gray-700 dark:text-gray-100 mt-3">
                 Si no lo encontrás, revisá tu carpeta de <strong>spam / correo no deseado</strong>.
               </p>
             </div>

@@ -20,6 +20,7 @@ const eventsRef = collection(db, 'events');
 export async function createEvent(data: EventFormData, userId: string, userEmail: string): Promise<string> {
   const docRef = await addDoc(eventsRef, {
     ...data,
+    tournamentType: data.tournamentType || 'americano',
     date: new Date(data.date + 'T12:00:00') as unknown as Timestamp,
     currentRegistrations: 0,
     createdBy: userId,

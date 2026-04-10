@@ -9,6 +9,9 @@ export type PlayerPosition = 'drive' | 'reves' | 'indistinto';
 // Event status
 export type EventStatus = 'draft' | 'published' | 'closed' | 'finished' | 'cancelled';
 
+// Tournament type
+export type TournamentType = 'americano' | 'libre';
+
 // Payment status
 export type PaymentStatus = 'pending' | 'paid' | 'cancelled';
 
@@ -41,6 +44,7 @@ export interface PadelEvent {
   price: number;
   description?: string;
   status: EventStatus;
+  tournamentType: TournamentType;
   currentRegistrations: number;
   createdBy: string;
   createdByEmail?: string;
@@ -71,6 +75,7 @@ export interface EventPair {
   player1Name: string;
   player2Id: string;
   player2Name: string;
+  round?: number; // Used in 'libre' tournaments to group pairs by fecha
   createdAt: Timestamp;
 }
 
@@ -122,6 +127,7 @@ export interface EventFormData {
   price: number;
   description?: string;
   status: EventStatus;
+  tournamentType: TournamentType;
 }
 
 export interface ProfileFormData {

@@ -16,7 +16,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
-import { EVENT_STATUSES, EVENT_STATUS_COLORS, PAYMENT_STATUSES, PAYMENT_STATUS_COLORS, PLAYER_POSITIONS } from '@/utils/constants';
+import { EVENT_STATUSES, EVENT_STATUS_COLORS, PAYMENT_STATUSES, PAYMENT_STATUS_COLORS, PLAYER_POSITIONS, TOURNAMENT_TYPES } from '@/utils/constants';
 import { formatPrice, inverseScore, determineWinner, countSets } from '@/utils/format';
 import type { PadelEvent, Registration, EventPair, Match } from '@/types';
 import toast from 'react-hot-toast';
@@ -44,6 +44,8 @@ export function AdminEventDetailPage() {
   const [pairPlayer1, setPairPlayer1] = useState('');
   const [pairPlayer2, setPairPlayer2] = useState('');
   const [pairLoading, setPairLoading] = useState(false);
+  // For 'libre' type: which fecha (round) the modal is creating a pair for
+  const [pairFormRound, setPairFormRound] = useState<number | null>(null);
 
   // Match form (create)
   const [matchPairA, setMatchPairA] = useState('');
@@ -134,11 +136,12 @@ export function AdminEventDetailPage() {
       const p1 = registrations.find(r => r.userId === pairPlayer1);
       const p2 = registrations.find(r => r.userId === pairPlayer2);
       if (!p1 || !p2) throw new Error('Jugadores no encontrados');
-      await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName);
+      await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName, pairFormRound ?? undefined);
       toast.success('Pareja creada');
       setPairModalOpen(false);
       setPairPlayer1('');
       setPairPlayer2('');
+      setPairFormRound(null);
       await loadData();
     } catch (err) { toast.error(err instanceof Error ? err.message : 'Error al crear pareja'); }
     finally { setPairLoading(false); }
@@ -157,42 +160,39 @@ export function AdminEventDetailPage() {
     } catch { toast.error('Error al eliminar pareja'); }
   };
 
-  const handleAutoPair = async () => {
-    if (!eventId || availablePlayers.length < 2) return;
+  const handleAutoPair = async (round?: number) => {
+    if (!eventId) return;
+    // For libre, we auto-pair players NOT yet in a pair of that specific round
+    // For americano, we auto-pair players NOT yet in any event pair
+    const pool = round != null
+      ? registrations.filter(r => {
+          const inRound = pairs.some(p => p.round === round && (p.player1Id === r.userId || p.player2Id === r.userId));
+          return !inRound;
+        })
+      : availablePlayers;
+    if (pool.length < 2) {
+      toast.error('No hay suficientes jugadores disponibles');
+      return;
+    }
     setPairLoading(true);
     try {
-      // Group available players by position
       const shuffle = <T,>(arr: T[]) => arr.map(v => [Math.random(), v] as const).sort((a, b) => a[0] - b[0]).map(([, v]) => v);
-      const drives = shuffle(availablePlayers.filter(p => p.userPosition === 'drive'));
-      const reves = shuffle(availablePlayers.filter(p => p.userPosition === 'reves'));
-      const indistintos = shuffle(availablePlayers.filter(p => p.userPosition === 'indistinto'));
+      const drives = shuffle(pool.filter(p => p.userPosition === 'drive'));
+      const reves = shuffle(pool.filter(p => p.userPosition === 'reves'));
+      const indistintos = shuffle(pool.filter(p => p.userPosition === 'indistinto'));
 
-      const newPairs: [typeof availablePlayers[0], typeof availablePlayers[0]][] = [];
-
-      // Step 1: Drive + Revés
-      while (drives.length > 0 && reves.length > 0) {
-        newPairs.push([drives.pop()!, reves.pop()!]);
-      }
-      // Step 2: leftover (drive or revés) + indistinto
+      const newPairs: [typeof pool[0], typeof pool[0]][] = [];
+      while (drives.length > 0 && reves.length > 0) newPairs.push([drives.pop()!, reves.pop()!]);
       while ((drives.length > 0 || reves.length > 0) && indistintos.length > 0) {
         const main = drives.length > 0 ? drives.pop()! : reves.pop()!;
         newPairs.push([main, indistintos.pop()!]);
       }
-      // Step 3: indistinto + indistinto
-      while (indistintos.length >= 2) {
-        newPairs.push([indistintos.pop()!, indistintos.pop()!]);
-      }
-      // Step 4: same position (last resort)
-      while (drives.length >= 2) {
-        newPairs.push([drives.pop()!, drives.pop()!]);
-      }
-      while (reves.length >= 2) {
-        newPairs.push([reves.pop()!, reves.pop()!]);
-      }
+      while (indistintos.length >= 2) newPairs.push([indistintos.pop()!, indistintos.pop()!]);
+      while (drives.length >= 2) newPairs.push([drives.pop()!, drives.pop()!]);
+      while (reves.length >= 2) newPairs.push([reves.pop()!, reves.pop()!]);
 
-      // Create all pairs in Firestore
       for (const [p1, p2] of newPairs) {
-        await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName);
+        await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName, round);
       }
       toast.success(`${newPairs.length} parejas creadas`);
       await loadData();
@@ -218,43 +218,64 @@ export function AdminEventDetailPage() {
 
   const handleAutoMatches = async () => {
     if (!eventId || !appUser) return;
-    if (pairs.length < 4) {
-      toast.error('Se necesitan al menos 4 parejas');
-      return;
-    }
-    if (pairs.length % 2 !== 0) {
-      toast.error('Se necesita un número par de parejas para que cada una juegue 3 partidos');
-      return;
-    }
+    const isLibre = event?.tournamentType === 'libre';
     setMatchLoading(true);
     try {
-      // Build set of existing matchups (sorted pair IDs as key)
       const matchKey = (a: string, b: string) => [a, b].sort().join('|');
       const existingKeys = new Set(matches.map(m => matchKey(m.pairAId, m.pairBId)));
-
-      // Determine starting round (continue from existing rounds if any)
-      const maxExistingRound = matches.reduce((max, m) => (m.round && m.round > max ? m.round : max), 0);
-
-      // Round-robin rotation: shuffle pairs first for variety
       const shuffle = <T,>(arr: T[]) => arr.map(v => [Math.random(), v] as const).sort((a, b) => a[0] - b[0]).map(([, v]) => v);
-      const ids = shuffle(pairs.map(p => p.id));
-      const N = ids.length;
+
       const allMatches: { a: string; b: string; round: number }[] = [];
       const generatedKeys = new Set<string>();
 
-      for (let r = 0; r < 3; r++) {
-        for (let i = 0; i < N / 2; i++) {
-          const a = ids[i];
-          const b = ids[N - 1 - i];
-          const key = matchKey(a, b);
-          if (!existingKeys.has(key) && !generatedKeys.has(key)) {
-            allMatches.push({ a, b, round: maxExistingRound + r + 1 });
-            generatedKeys.add(key);
+      if (isLibre) {
+        // For libre: generate all crosses within each fecha (round)
+        const rounds = Array.from(new Set(pairs.map(p => p.round).filter((r): r is number => r != null))).sort((a, b) => a - b);
+        if (rounds.length === 0) {
+          toast.error('No hay fechas con parejas. Creá las parejas de una fecha primero.');
+          return;
+        }
+        for (const round of rounds) {
+          const pairsInRound = pairs.filter(p => p.round === round);
+          // All crosses
+          for (let i = 0; i < pairsInRound.length; i++) {
+            for (let j = i + 1; j < pairsInRound.length; j++) {
+              const a = pairsInRound[i].id;
+              const b = pairsInRound[j].id;
+              const key = matchKey(a, b);
+              if (!existingKeys.has(key) && !generatedKeys.has(key)) {
+                allMatches.push({ a, b, round });
+                generatedKeys.add(key);
+              }
+            }
           }
         }
-        // Rotate keeping first fixed
-        const last = ids.pop()!;
-        ids.splice(1, 0, last);
+      } else {
+        // Americano: round-robin 3 rounds
+        if (pairs.length < 4) {
+          toast.error('Se necesitan al menos 4 parejas');
+          return;
+        }
+        if (pairs.length % 2 !== 0) {
+          toast.error('Se necesita un número par de parejas para que cada una juegue 3 partidos');
+          return;
+        }
+        const maxExistingRound = matches.reduce((max, m) => (m.round && m.round > max ? m.round : max), 0);
+        const ids = shuffle(pairs.map(p => p.id));
+        const N = ids.length;
+        for (let r = 0; r < 3; r++) {
+          for (let i = 0; i < N / 2; i++) {
+            const a = ids[i];
+            const b = ids[N - 1 - i];
+            const key = matchKey(a, b);
+            if (!existingKeys.has(key) && !generatedKeys.has(key)) {
+              allMatches.push({ a, b, round: maxExistingRound + r + 1 });
+              generatedKeys.add(key);
+            }
+          }
+          const last = ids.pop()!;
+          ids.splice(1, 0, last);
+        }
       }
 
       if (allMatches.length === 0) {
@@ -371,11 +392,13 @@ export function AdminEventDetailPage() {
     }
   };
 
-  // Calculate standings: 1 pt per win → sets diff → games diff
-  const standings = (() => {
-    const stats: Record<string, { pairId: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
+  const isLibre = event.tournamentType === 'libre';
+
+  // Pair standings (americano)
+  const pairStandings = (() => {
+    const stats: Record<string, { id: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
     pairs.forEach(p => {
-      stats[p.id] = { pairId: p.id, name: `${p.player1Name} / ${p.player2Name}`, played: 0, won: 0, lost: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, points: 0 };
+      stats[p.id] = { id: p.id, name: `${p.player1Name} / ${p.player2Name}`, played: 0, won: 0, lost: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, points: 0 };
     });
     matches.forEach(m => {
       if (!m.winnerId) return;
@@ -384,39 +407,79 @@ export function AdminEventDetailPage() {
       const a = stats[m.pairAId];
       const b = stats[m.pairBId];
       if (!a || !b) return;
-      a.played++;
-      b.played++;
-      a.setsWon += counts.won;
-      a.setsLost += counts.lost;
-      a.gamesWon += counts.gamesWon;
-      a.gamesLost += counts.gamesLost;
-      b.setsWon += counts.lost;
-      b.setsLost += counts.won;
-      b.gamesWon += counts.gamesLost;
-      b.gamesLost += counts.gamesWon;
-      if (m.winnerId === m.pairAId) {
-        a.won++; a.points++; b.lost++;
-      } else if (m.winnerId === m.pairBId) {
-        b.won++; b.points++; a.lost++;
-      }
+      a.played++; b.played++;
+      a.setsWon += counts.won; a.setsLost += counts.lost;
+      a.gamesWon += counts.gamesWon; a.gamesLost += counts.gamesLost;
+      b.setsWon += counts.lost; b.setsLost += counts.won;
+      b.gamesWon += counts.gamesLost; b.gamesLost += counts.gamesWon;
+      if (m.winnerId === m.pairAId) { a.won++; a.points++; b.lost++; }
+      else if (m.winnerId === m.pairBId) { b.won++; b.points++; a.lost++; }
     });
     return Object.values(stats).sort((x, y) => {
       if (y.points !== x.points) return y.points - x.points;
-      const setDiffX = x.setsWon - x.setsLost;
-      const setDiffY = y.setsWon - y.setsLost;
-      if (setDiffY !== setDiffX) return setDiffY - setDiffX;
-      const gameDiffX = x.gamesWon - x.gamesLost;
-      const gameDiffY = y.gamesWon - y.gamesLost;
-      return gameDiffY - gameDiffX;
+      const setDiff = (y.setsWon - y.setsLost) - (x.setsWon - x.setsLost);
+      if (setDiff !== 0) return setDiff;
+      return (y.gamesWon - y.gamesLost) - (x.gamesWon - x.gamesLost);
     });
   })();
+
+  // Player standings (libre)
+  const playerStandings = (() => {
+    const stats: Record<string, { id: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
+    const pairMap = new Map(pairs.map(p => [p.id, p]));
+    const initPlayer = (userId: string, userName: string) => {
+      if (!stats[userId]) stats[userId] = { id: userId, name: userName, played: 0, won: 0, lost: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, points: 0 };
+      return stats[userId];
+    };
+    matches.forEach(m => {
+      if (!m.winnerId) return;
+      const counts = countSets(m.scoreA);
+      if (!counts) return;
+      const pairA = pairMap.get(m.pairAId);
+      const pairB = pairMap.get(m.pairBId);
+      if (!pairA || !pairB) return;
+      const playersA = [initPlayer(pairA.player1Id, pairA.player1Name), initPlayer(pairA.player2Id, pairA.player2Name)];
+      const playersB = [initPlayer(pairB.player1Id, pairB.player1Name), initPlayer(pairB.player2Id, pairB.player2Name)];
+      playersA.forEach(p => {
+        p.played++;
+        p.setsWon += counts.won; p.setsLost += counts.lost;
+        p.gamesWon += counts.gamesWon; p.gamesLost += counts.gamesLost;
+      });
+      playersB.forEach(p => {
+        p.played++;
+        p.setsWon += counts.lost; p.setsLost += counts.won;
+        p.gamesWon += counts.gamesLost; p.gamesLost += counts.gamesWon;
+      });
+      const winners = m.winnerId === m.pairAId ? playersA : playersB;
+      const losers = m.winnerId === m.pairAId ? playersB : playersA;
+      winners.forEach(p => { p.won++; p.points++; });
+      losers.forEach(p => { p.lost++; });
+    });
+    return Object.values(stats).sort((x, y) => {
+      if (y.points !== x.points) return y.points - x.points;
+      const setDiff = (y.setsWon - y.setsLost) - (x.setsWon - x.setsLost);
+      if (setDiff !== 0) return setDiff;
+      return (y.gamesWon - y.gamesLost) - (x.gamesWon - x.gamesLost);
+    });
+  })();
+
+  const standings = isLibre ? playerStandings : pairStandings;
 
   const getPairName = (pairId: string) => {
     const p = pairs.find(pr => pr.id === pairId);
     return p ? `${p.player1Name} / ${p.player2Name}` : 'Pareja desconocida';
   };
 
-  const usedPlayerIds = new Set(pairs.flatMap(p => [p.player1Id, p.player2Id]));
+  // Available players depends on mode and current fecha context
+  // - Americano: players not in any pair
+  // - Libre (with pairFormRound set): players not in any pair of that round
+  // - Libre (no round context): players in general (shown as list for overview)
+  const relevantPairs = isLibre && pairFormRound != null
+    ? pairs.filter(p => p.round === pairFormRound)
+    : isLibre
+      ? [] // When opening the modal context-less we don't filter
+      : pairs;
+  const usedPlayerIds = new Set(relevantPairs.flatMap(p => [p.player1Id, p.player2Id]));
   const availablePlayers = registrations.filter(r => !usedPlayerIds.has(r.userId));
 
   const playerOptions = [
@@ -445,6 +508,7 @@ export function AdminEventDetailPage() {
             {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time} | {event.location}
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500 dark:text-gray-400">
+            <span><span className="text-gray-400 dark:text-gray-500">Tipo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{TOURNAMENT_TYPES[event.tournamentType || 'americano']}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Cupo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.currentRegistrations}/{event.maxCapacity}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Precio:</span> <span className="font-medium text-gray-700 dark:text-gray-300">${formatPrice(event.price)}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Creador:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.createdByEmail || event.createdBy}</span></span>
@@ -522,16 +586,16 @@ export function AdminEventDetailPage() {
       )}
 
       {/* Pairs Tab */}
-      {activeTab === 'pairs' && (
+      {activeTab === 'pairs' && !isLibre && (
         <div>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
             <Button variant="secondary" onClick={() => setDeleteAllPairsOpen(true)} disabled={pairs.length === 0 || isFinished}>
               Borrar todas
             </Button>
-            <Button variant="secondary" onClick={handleAutoPair} loading={pairLoading} disabled={availablePlayers.length < 2 || isFinished}>
+            <Button variant="secondary" onClick={() => handleAutoPair()} loading={pairLoading} disabled={availablePlayers.length < 2 || isFinished}>
               Auto-armar parejas
             </Button>
-            <Button onClick={() => setPairModalOpen(true)} disabled={availablePlayers.length < 2 || isFinished}>
+            <Button onClick={() => { setPairFormRound(null); setPairModalOpen(true); }} disabled={availablePlayers.length < 2 || isFinished}>
               Crear pareja
             </Button>
           </div>
@@ -566,6 +630,80 @@ export function AdminEventDetailPage() {
           </Card>
         </div>
       )}
+
+      {/* Pairs Tab - Libre (grouped by fecha) */}
+      {activeTab === 'pairs' && isLibre && (() => {
+        const roundsSet = new Set(pairs.map(p => p.round).filter((r): r is number => r != null));
+        const rounds = Array.from(roundsSet).sort((a, b) => a - b);
+        const nextRound = (rounds.length > 0 ? Math.max(...rounds) : 0) + 1;
+        return (
+          <div>
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              <Button variant="secondary" onClick={() => setDeleteAllPairsOpen(true)} disabled={pairs.length === 0 || isFinished}>
+                Borrar todas
+              </Button>
+              <Button onClick={() => { setPairFormRound(nextRound); setPairModalOpen(true); }} disabled={isFinished}>
+                + Agregar pareja a Fecha {nextRound}
+              </Button>
+            </div>
+            {rounds.length === 0 ? (
+              <Card><CardContent className="py-4"><EmptyState title="Sin parejas" description="Agregá parejas a la Fecha 1 para empezar" /></CardContent></Card>
+            ) : (
+              <div className="space-y-6">
+                {rounds.map(round => {
+                  const pairsInRound = pairs.filter(p => p.round === round);
+                  const playersInRound = new Set(pairsInRound.flatMap(p => [p.player1Id, p.player2Id]));
+                  const canAddMore = registrations.filter(r => !playersInRound.has(r.userId)).length >= 2;
+                  return (
+                    <div key={round}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Fecha {round}</h3>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleAutoPair(round)} loading={pairLoading} disabled={!canAddMore || isFinished}>
+                            Auto-armar
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => { setPairFormRound(round); setPairModalOpen(true); }} disabled={!canAddMore || isFinished}>
+                            + Pareja
+                          </Button>
+                        </div>
+                      </div>
+                      <Card>
+                        <CardContent className="py-4">
+                          {pairsInRound.length === 0 ? (
+                            <EmptyState title="Sin parejas" description="Agregá parejas a esta fecha" />
+                          ) : (
+                            <div className="space-y-2">
+                              {pairsInRound.map((pair, idx) => {
+                                const p1Pos = registrations.find(r => r.userId === pair.player1Id)?.userPosition;
+                                const p2Pos = registrations.find(r => r.userId === pair.player2Id)?.userPosition;
+                                return (
+                                  <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <div>
+                                      <span className="text-sm font-medium text-gray-400 dark:text-gray-500">{idx + 1}:</span>{' '}
+                                      <span className="font-medium">{pair.player1Name}</span>
+                                      {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
+                                      <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
+                                      <span className="font-medium">{pair.player2Name}</span>
+                                      {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                                    </div>
+                                    <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)} disabled={isFinished}>
+                                      Eliminar
+                                    </Button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Matches Tab */}
       {activeTab === 'matches' && (
@@ -654,7 +792,7 @@ export function AdminEventDetailPage() {
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
                       <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400 w-10">#</th>
-                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Pareja</th>
+                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">{isLibre ? 'Jugador' : 'Pareja'}</th>
                       <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PJ</th>
                       <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PG</th>
                       <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PP</th>
@@ -672,7 +810,7 @@ export function AdminEventDetailPage() {
                       const setDiff = s.setsWon - s.setsLost;
                       const gameDiff = s.gamesWon - s.gamesLost;
                       return (
-                        <tr key={s.pairId} className="border-b border-gray-100 dark:border-gray-700">
+                        <tr key={s.id} className="border-b border-gray-100 dark:border-gray-700">
                           <td className="py-2.5">
                             <span className={`font-bold ${idx === 0 ? 'text-yellow-500' : idx < 3 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
                               {idx + 1}
@@ -715,12 +853,12 @@ export function AdminEventDetailPage() {
       />
 
       {/* Create Pair Modal */}
-      <Modal open={pairModalOpen} onClose={() => setPairModalOpen(false)} title="Crear pareja">
+      <Modal open={pairModalOpen} onClose={() => { setPairModalOpen(false); setPairFormRound(null); }} title={isLibre && pairFormRound ? `Agregar pareja a Fecha ${pairFormRound}` : 'Crear pareja'}>
         <div className="space-y-4">
           <Select label="Jugador 1" options={playerOptions} value={pairPlayer1} onChange={e => setPairPlayer1(e.target.value)} />
           <Select label="Jugador 2" options={playerOptions.filter(o => o.value !== pairPlayer1)} value={pairPlayer2} onChange={e => setPairPlayer2(e.target.value)} />
           <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setPairModalOpen(false)}>Cancelar</Button>
+            <Button variant="secondary" onClick={() => { setPairModalOpen(false); setPairFormRound(null); }}>Cancelar</Button>
             <Button onClick={handleCreatePair} loading={pairLoading} disabled={!pairPlayer1 || !pairPlayer2}>Crear</Button>
           </div>
         </div>
