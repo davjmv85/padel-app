@@ -23,10 +23,13 @@ export function EventFormPage() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(isEditing);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<EventFormData>({
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<EventFormData>({
     resolver: zodResolver(eventSchema) as never,
     defaultValues: { status: 'draft' },
   });
+
+  const currentStatus = watch('status');
+  const isFinished = currentStatus === 'finished';
 
   useEffect(() => {
     if (isEditing && eventId) {
@@ -57,7 +60,7 @@ export function EventFormPage() {
         toast.success('Evento actualizado');
         navigate(`/admin/events/${eventId}`);
       } else {
-        const id = await createEvent(data, appUser.id);
+        const id = await createEvent(data, appUser.id, appUser.email);
         toast.success('Evento creado');
         navigate(`/admin/events/${id}`);
       }
@@ -80,18 +83,23 @@ export function EventFormPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Completá los datos del evento</p>
         </CardHeader>
         <CardContent>
+          {isFinished && (
+            <div className="mb-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-300">
+              El evento está <strong>finalizado</strong>. Cambiá el estado para poder editar el resto de los campos.
+            </div>
+          )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input label="Nombre" {...register('name')} error={errors.name?.message} />
-            <Input label="Lugar" {...register('location')} error={errors.location?.message} />
+            <Input label="Nombre" {...register('name')} error={errors.name?.message} disabled={isFinished} />
+            <Input label="Lugar" {...register('location')} error={errors.location?.message} disabled={isFinished} />
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Fecha" type="date" {...register('date')} error={errors.date?.message} />
-              <Input label="Hora" type="time" {...register('time')} error={errors.time?.message} />
+              <Input label="Fecha" type="date" {...register('date')} error={errors.date?.message} disabled={isFinished} />
+              <Input label="Hora" type="time" {...register('time')} error={errors.time?.message} disabled={isFinished} />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Cupo máximo" type="number" {...register('maxCapacity')} error={errors.maxCapacity?.message} />
-              <Input label="Precio ($)" type="number" step="0.01" {...register('price')} error={errors.price?.message} />
+              <Input label="Cupo máximo" type="number" {...register('maxCapacity')} error={errors.maxCapacity?.message} disabled={isFinished} />
+              <Input label="Precio ($)" type="number" step="0.01" {...register('price')} error={errors.price?.message} disabled={isFinished} />
             </div>
-            <Textarea label="Descripción (opcional)" rows={3} {...register('description')} error={errors.description?.message} />
+            <Textarea label="Descripción (opcional)" rows={3} {...register('description')} error={errors.description?.message} disabled={isFinished} />
             <Select label="Estado" options={statusOptions} {...register('status')} error={errors.status?.message} />
             <div className="flex gap-3 pt-2">
               <Button type="submit" loading={loading}>

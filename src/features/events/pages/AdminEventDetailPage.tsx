@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Pencil } from 'lucide-react';
+import { Pencil, MoreVertical, Check, Clock, UserMinus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getEvent } from '../services/eventService';
 import { getEventRegistrations, cancelRegistration, updatePaymentStatus } from '@/features/registrations/services/registrationService';
 import { getEventPairs, createPair, deletePair } from '@/features/pairs/services/pairService';
-import { getEventMatches, createMatch, updateMatch } from '@/features/matches/services/matchService';
+import { getEventMatches, createMatch, updateMatch, deleteMatch } from '@/features/matches/services/matchService';
+import { recalculateRankings } from '@/features/ranking/services/rankingService';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -16,10 +17,11 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS, PAYMENT_STATUSES, PAYMENT_STATUS_COLORS, PLAYER_POSITIONS } from '@/utils/constants';
+import { formatPrice, inverseScore, determineWinner, countSets } from '@/utils/format';
 import type { PadelEvent, Registration, EventPair, Match } from '@/types';
 import toast from 'react-hot-toast';
 
-type Tab = 'info' | 'registrations' | 'payments' | 'pairs' | 'matches';
+type Tab = 'registrations' | 'pairs' | 'matches' | 'standings';
 
 export function AdminEventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -30,7 +32,7 @@ export function AdminEventDetailPage() {
   const [pairs, setPairs] = useState<EventPair[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>('info');
+  const [activeTab, setActiveTab] = useState<Tab>('registrations');
 
   // Modal states
   const [cancelRegId, setCancelRegId] = useState<string | null>(null);
@@ -43,14 +45,28 @@ export function AdminEventDetailPage() {
   const [pairPlayer2, setPairPlayer2] = useState('');
   const [pairLoading, setPairLoading] = useState(false);
 
-  // Match form
+  // Match form (create)
   const [matchPairA, setMatchPairA] = useState('');
   const [matchPairB, setMatchPairB] = useState('');
-  const [matchScoreA, setMatchScoreA] = useState('');
-  const [matchScoreB, setMatchScoreB] = useState('');
-  const [matchWinner, setMatchWinner] = useState('');
   const [matchLoading, setMatchLoading] = useState(false);
-  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+
+  // Match result form (load score)
+  const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [resultMatchId, setResultMatchId] = useState<string | null>(null);
+  const [resultScoreA, setResultScoreA] = useState('');
+  const [resultPairAId, setResultPairAId] = useState('');
+  const [resultPairBId, setResultPairBId] = useState('');
+  const [resultLoading, setResultLoading] = useState(false);
+
+  // Delete match
+  const [deleteMatchId, setDeleteMatchId] = useState<string | null>(null);
+  const [deleteMatchLoading, setDeleteMatchLoading] = useState(false);
+
+  // Delete all matches / pairs
+  const [deleteAllMatchesOpen, setDeleteAllMatchesOpen] = useState(false);
+  const [deleteAllMatchesLoading, setDeleteAllMatchesLoading] = useState(false);
+  const [deleteAllPairsOpen, setDeleteAllPairsOpen] = useState(false);
+  const [deleteAllPairsLoading, setDeleteAllPairsLoading] = useState(false);
 
   const loadData = async () => {
     if (!eventId) return;
@@ -75,15 +91,23 @@ export function AdminEventDetailPage() {
   if (loading || !event) return <Spinner />;
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'info', label: 'Información' },
     { key: 'registrations', label: `Inscriptos (${registrations.length})` },
-    { key: 'payments', label: 'Pagos' },
     { key: 'pairs', label: `Parejas (${pairs.length})` },
     { key: 'matches', label: `Partidos (${matches.length})` },
+    { key: 'standings', label: 'Posiciones' },
   ];
 
   const handleCancelReg = async () => {
     if (!cancelRegId || !eventId) return;
+    const reg = registrations.find(r => r.id === cancelRegId);
+    if (reg) {
+      const inPair = pairs.some(p => p.player1Id === reg.userId || p.player2Id === reg.userId);
+      if (inPair) {
+        toast.error('No se puede dar de baja: el jugador está en una pareja. Eliminala primero.');
+        setCancelRegId(null);
+        return;
+      }
+    }
     setCancelLoading(true);
     try {
       await cancelRegistration(cancelRegId, eventId);
@@ -121,6 +145,11 @@ export function AdminEventDetailPage() {
   };
 
   const handleDeletePair = async (pairId: string) => {
+    const usedPairIds = new Set(matches.flatMap(m => [m.pairAId, m.pairBId]));
+    if (usedPairIds.has(pairId)) {
+      toast.error('No se puede eliminar: la pareja tiene partidos asociados');
+      return;
+    }
     try {
       await deletePair(pairId);
       toast.success('Pareja eliminada');
@@ -128,17 +157,58 @@ export function AdminEventDetailPage() {
     } catch { toast.error('Error al eliminar pareja'); }
   };
 
+  const handleAutoPair = async () => {
+    if (!eventId || availablePlayers.length < 2) return;
+    setPairLoading(true);
+    try {
+      // Group available players by position
+      const shuffle = <T,>(arr: T[]) => arr.map(v => [Math.random(), v] as const).sort((a, b) => a[0] - b[0]).map(([, v]) => v);
+      const drives = shuffle(availablePlayers.filter(p => p.userPosition === 'drive'));
+      const reves = shuffle(availablePlayers.filter(p => p.userPosition === 'reves'));
+      const indistintos = shuffle(availablePlayers.filter(p => p.userPosition === 'indistinto'));
+
+      const newPairs: [typeof availablePlayers[0], typeof availablePlayers[0]][] = [];
+
+      // Step 1: Drive + Revés
+      while (drives.length > 0 && reves.length > 0) {
+        newPairs.push([drives.pop()!, reves.pop()!]);
+      }
+      // Step 2: leftover (drive or revés) + indistinto
+      while ((drives.length > 0 || reves.length > 0) && indistintos.length > 0) {
+        const main = drives.length > 0 ? drives.pop()! : reves.pop()!;
+        newPairs.push([main, indistintos.pop()!]);
+      }
+      // Step 3: indistinto + indistinto
+      while (indistintos.length >= 2) {
+        newPairs.push([indistintos.pop()!, indistintos.pop()!]);
+      }
+      // Step 4: same position (last resort)
+      while (drives.length >= 2) {
+        newPairs.push([drives.pop()!, drives.pop()!]);
+      }
+      while (reves.length >= 2) {
+        newPairs.push([reves.pop()!, reves.pop()!]);
+      }
+
+      // Create all pairs in Firestore
+      for (const [p1, p2] of newPairs) {
+        await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName);
+      }
+      toast.success(`${newPairs.length} parejas creadas`);
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al armar parejas');
+    } finally {
+      setPairLoading(false);
+    }
+  };
+
   const handleCreateMatch = async () => {
-    if (!eventId || !appUser || !matchPairA || !matchPairB || !matchWinner) return;
+    if (!eventId || !appUser || !matchPairA || !matchPairB) return;
     setMatchLoading(true);
     try {
-      if (editingMatchId) {
-        await updateMatch(editingMatchId, matchScoreA, matchScoreB, matchWinner);
-        toast.success('Resultado actualizado');
-      } else {
-        await createMatch(eventId, matchPairA, matchPairB, matchScoreA, matchScoreB, matchWinner, appUser.id);
-        toast.success('Resultado cargado');
-      }
+      await createMatch(eventId, matchPairA, matchPairB, appUser.id);
+      toast.success('Partido creado');
       setMatchModalOpen(false);
       resetMatchForm();
       await loadData();
@@ -146,24 +216,200 @@ export function AdminEventDetailPage() {
     finally { setMatchLoading(false); }
   };
 
+  const handleAutoMatches = async () => {
+    if (!eventId || !appUser) return;
+    if (pairs.length < 4) {
+      toast.error('Se necesitan al menos 4 parejas');
+      return;
+    }
+    if (pairs.length % 2 !== 0) {
+      toast.error('Se necesita un número par de parejas para que cada una juegue 3 partidos');
+      return;
+    }
+    setMatchLoading(true);
+    try {
+      // Build set of existing matchups (sorted pair IDs as key)
+      const matchKey = (a: string, b: string) => [a, b].sort().join('|');
+      const existingKeys = new Set(matches.map(m => matchKey(m.pairAId, m.pairBId)));
+
+      // Determine starting round (continue from existing rounds if any)
+      const maxExistingRound = matches.reduce((max, m) => (m.round && m.round > max ? m.round : max), 0);
+
+      // Round-robin rotation: shuffle pairs first for variety
+      const shuffle = <T,>(arr: T[]) => arr.map(v => [Math.random(), v] as const).sort((a, b) => a[0] - b[0]).map(([, v]) => v);
+      const ids = shuffle(pairs.map(p => p.id));
+      const N = ids.length;
+      const allMatches: { a: string; b: string; round: number }[] = [];
+      const generatedKeys = new Set<string>();
+
+      for (let r = 0; r < 3; r++) {
+        for (let i = 0; i < N / 2; i++) {
+          const a = ids[i];
+          const b = ids[N - 1 - i];
+          const key = matchKey(a, b);
+          if (!existingKeys.has(key) && !generatedKeys.has(key)) {
+            allMatches.push({ a, b, round: maxExistingRound + r + 1 });
+            generatedKeys.add(key);
+          }
+        }
+        // Rotate keeping first fixed
+        const last = ids.pop()!;
+        ids.splice(1, 0, last);
+      }
+
+      if (allMatches.length === 0) {
+        toast('No hay nuevos cruces posibles, todos los partidos ya existen');
+        return;
+      }
+
+      for (const m of allMatches) {
+        await createMatch(eventId, m.a, m.b, appUser.id, m.round);
+      }
+      toast.success(`${allMatches.length} partidos creados`);
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al armar partidos');
+    } finally {
+      setMatchLoading(false);
+    }
+  };
+
+  const handleDeleteAllMatches = async () => {
+    if (matches.length === 0) return;
+    setDeleteAllMatchesLoading(true);
+    try {
+      for (const m of matches) {
+        await deleteMatch(m.id);
+      }
+      await recalculateRankings();
+      toast.success(`${matches.length} partidos eliminados`);
+      setDeleteAllMatchesOpen(false);
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setDeleteAllMatchesLoading(false);
+    }
+  };
+
+  const handleDeleteAllPairs = async () => {
+    if (pairs.length === 0) return;
+    setDeleteAllPairsLoading(true);
+    try {
+      const usedPairIds = new Set(matches.flatMap(m => [m.pairAId, m.pairBId]));
+      const deletable = pairs.filter(p => !usedPairIds.has(p.id));
+      const skipped = pairs.length - deletable.length;
+      for (const p of deletable) {
+        await deletePair(p.id);
+      }
+      if (deletable.length === 0) {
+        toast.error('No se pudo eliminar ninguna pareja: todas tienen partidos asociados');
+      } else if (skipped > 0) {
+        toast.success(`${deletable.length} parejas eliminadas. ${skipped} no se eliminaron porque tienen partidos`);
+      } else {
+        toast.success(`${deletable.length} parejas eliminadas`);
+      }
+      setDeleteAllPairsOpen(false);
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setDeleteAllPairsLoading(false);
+    }
+  };
+
   const resetMatchForm = () => {
     setMatchPairA('');
     setMatchPairB('');
-    setMatchScoreA('');
-    setMatchScoreB('');
-    setMatchWinner('');
-    setEditingMatchId(null);
   };
 
-  const openEditMatch = (m: Match) => {
-    setEditingMatchId(m.id);
-    setMatchPairA(m.pairAId);
-    setMatchPairB(m.pairBId);
-    setMatchScoreA(m.scoreA);
-    setMatchScoreB(m.scoreB);
-    setMatchWinner(m.winnerId);
-    setMatchModalOpen(true);
+  const openLoadResult = (m: Match) => {
+    setResultMatchId(m.id);
+    setResultPairAId(m.pairAId);
+    setResultPairBId(m.pairBId);
+    setResultScoreA(m.scoreA || '');
+    setResultModalOpen(true);
   };
+
+  const handleSaveResult = async () => {
+    if (!resultMatchId || !resultScoreA.trim()) return;
+    const winner = determineWinner(resultScoreA);
+    if (!winner) {
+      toast.error('Resultado inválido. Formato: "6-4 6-3"');
+      return;
+    }
+    setResultLoading(true);
+    try {
+      const winnerId = winner === 'A' ? resultPairAId : resultPairBId;
+      await updateMatch(resultMatchId, resultScoreA, inverseScore(resultScoreA), winnerId);
+      await recalculateRankings();
+      toast.success('Resultado guardado y ranking actualizado');
+      setResultModalOpen(false);
+      setResultMatchId(null);
+      setResultScoreA('');
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setResultLoading(false);
+    }
+  };
+
+  const handleDeleteMatch = async () => {
+    if (!deleteMatchId) return;
+    setDeleteMatchLoading(true);
+    try {
+      await deleteMatch(deleteMatchId);
+      await recalculateRankings();
+      toast.success('Partido eliminado');
+      setDeleteMatchId(null);
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setDeleteMatchLoading(false);
+    }
+  };
+
+  // Calculate standings: 1 pt per win → sets diff → games diff
+  const standings = (() => {
+    const stats: Record<string, { pairId: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
+    pairs.forEach(p => {
+      stats[p.id] = { pairId: p.id, name: `${p.player1Name} / ${p.player2Name}`, played: 0, won: 0, lost: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, points: 0 };
+    });
+    matches.forEach(m => {
+      if (!m.winnerId) return;
+      const counts = countSets(m.scoreA);
+      if (!counts) return;
+      const a = stats[m.pairAId];
+      const b = stats[m.pairBId];
+      if (!a || !b) return;
+      a.played++;
+      b.played++;
+      a.setsWon += counts.won;
+      a.setsLost += counts.lost;
+      a.gamesWon += counts.gamesWon;
+      a.gamesLost += counts.gamesLost;
+      b.setsWon += counts.lost;
+      b.setsLost += counts.won;
+      b.gamesWon += counts.gamesLost;
+      b.gamesLost += counts.gamesWon;
+      if (m.winnerId === m.pairAId) {
+        a.won++; a.points++; b.lost++;
+      } else if (m.winnerId === m.pairBId) {
+        b.won++; b.points++; a.lost++;
+      }
+    });
+    return Object.values(stats).sort((x, y) => {
+      if (y.points !== x.points) return y.points - x.points;
+      const setDiffX = x.setsWon - x.setsLost;
+      const setDiffY = y.setsWon - y.setsLost;
+      if (setDiffY !== setDiffX) return setDiffY - setDiffX;
+      const gameDiffX = x.gamesWon - x.gamesLost;
+      const gameDiffY = y.gamesWon - y.gamesLost;
+      return gameDiffY - gameDiffX;
+    });
+  })();
 
   const getPairName = (pairId: string) => {
     const p = pairs.find(pr => pr.id === pairId);
@@ -183,22 +429,29 @@ export function AdminEventDetailPage() {
     ...pairs.map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` })),
   ];
 
-  const winnerOptions = [
-    { value: '', label: 'Seleccionar ganador' },
-    ...(matchPairA ? [{ value: matchPairA, label: getPairName(matchPairA) }] : []),
-    ...(matchPairB && matchPairB !== matchPairA ? [{ value: matchPairB, label: getPairName(matchPairB) }] : []),
-  ];
+  const isFinished = event.status === 'finished';
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      {isFinished && (
+        <div className="mb-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-300">
+          Este evento está <strong>finalizado</strong>. Para modificar inscriptos, parejas o resultados, primero cambiá el estado desde Editar.
+        </div>
+      )}
+      <div className="flex items-start justify-between mb-6 gap-4">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">{event.name}</h1>
           <p className="text-gray-500 dark:text-gray-400">
             {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time} | {event.location}
           </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500 dark:text-gray-400">
+            <span><span className="text-gray-400 dark:text-gray-500">Cupo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.currentRegistrations}/{event.maxCapacity}</span></span>
+            <span><span className="text-gray-400 dark:text-gray-500">Precio:</span> <span className="font-medium text-gray-700 dark:text-gray-300">${formatPrice(event.price)}</span></span>
+            <span><span className="text-gray-400 dark:text-gray-500">Creador:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.createdByEmail || event.createdBy}</span></span>
+          </div>
+          {event.description && <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{event.description}</p>}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <Badge className={EVENT_STATUS_COLORS[event.status]}>{EVENT_STATUSES[event.status]}</Badge>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/admin/events/${eventId}/edit`)}>
             <Pencil className="h-4 w-4 mr-1" /> Editar
@@ -223,22 +476,7 @@ export function AdminEventDetailPage() {
         ))}
       </div>
 
-      {/* Info Tab */}
-      {activeTab === 'info' && (
-        <Card>
-          <CardContent className="space-y-3 py-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-gray-400 dark:text-gray-500">Cupo:</span> <span className="font-medium">{event.currentRegistrations}/{event.maxCapacity}</span></div>
-              <div><span className="text-gray-400 dark:text-gray-500">Precio:</span> <span className="font-medium">${event.price}</span></div>
-              <div><span className="text-gray-400 dark:text-gray-500">Estado:</span> <span className="font-medium">{EVENT_STATUSES[event.status]}</span></div>
-              <div><span className="text-gray-400 dark:text-gray-500">Creador:</span> <span className="font-medium">{event.createdBy}</span></div>
-            </div>
-            {event.description && <p className="text-sm text-gray-600 dark:text-gray-400 pt-2">{event.description}</p>}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Registrations Tab */}
+      {/* Registrations Tab (unified with payments) */}
       {activeTab === 'registrations' && (
         <Card>
           <CardContent className="py-4">
@@ -252,7 +490,7 @@ export function AdminEventDetailPage() {
                       <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Jugador</th>
                       <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Posición</th>
                       <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Pago</th>
-                      <th className="text-right py-2 font-medium text-gray-500 dark:text-gray-400">Acciones</th>
+                      <th className="text-right py-2 font-medium text-gray-500 dark:text-gray-400 w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -266,56 +504,12 @@ export function AdminEventDetailPage() {
                           </Badge>
                         </td>
                         <td className="py-2.5 text-right">
-                          <Button variant="ghost" size="sm" onClick={() => setCancelRegId(reg.id)}>
-                            Dar de baja
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Payments Tab */}
-      {activeTab === 'payments' && (
-        <Card>
-          <CardContent className="py-4">
-            {registrations.length === 0 ? (
-              <EmptyState title="Sin inscriptos" description="No hay pagos para gestionar" />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Jugador</th>
-                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Estado</th>
-                      <th className="text-right py-2 font-medium text-gray-500 dark:text-gray-400">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {registrations.map(reg => (
-                      <tr key={reg.id} className="border-b border-gray-100 dark:border-gray-700">
-                        <td className="py-2.5">{reg.userName}</td>
-                        <td className="py-2.5">
-                          <Badge className={PAYMENT_STATUS_COLORS[reg.paymentStatus]}>
-                            {PAYMENT_STATUSES[reg.paymentStatus]}
-                          </Badge>
-                        </td>
-                        <td className="py-2.5 text-right space-x-2">
-                          {reg.paymentStatus !== 'paid' && (
-                            <Button variant="ghost" size="sm" onClick={() => handlePayment(reg.id, 'paid')}>
-                              Marcar pagado
-                            </Button>
-                          )}
-                          {reg.paymentStatus === 'paid' && (
-                            <Button variant="ghost" size="sm" onClick={() => handlePayment(reg.id, 'pending')}>
-                              Marcar pendiente
-                            </Button>
-                          )}
+                          <RegistrationKebab
+                            paymentStatus={reg.paymentStatus}
+                            onTogglePayment={() => handlePayment(reg.id, reg.paymentStatus === 'paid' ? 'pending' : 'paid')}
+                            onUnregister={() => setCancelRegId(reg.id)}
+                            disabled={isFinished}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -330,8 +524,14 @@ export function AdminEventDetailPage() {
       {/* Pairs Tab */}
       {activeTab === 'pairs' && (
         <div>
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => setPairModalOpen(true)} disabled={availablePlayers.length < 2}>
+          <div className="flex justify-end gap-2 mb-4 flex-wrap">
+            <Button variant="secondary" onClick={() => setDeleteAllPairsOpen(true)} disabled={pairs.length === 0 || isFinished}>
+              Borrar todas
+            </Button>
+            <Button variant="secondary" onClick={handleAutoPair} loading={pairLoading} disabled={availablePlayers.length < 2 || isFinished}>
+              Auto-armar parejas
+            </Button>
+            <Button onClick={() => setPairModalOpen(true)} disabled={availablePlayers.length < 2 || isFinished}>
               Crear pareja
             </Button>
           </div>
@@ -341,19 +541,25 @@ export function AdminEventDetailPage() {
                 <EmptyState title="Sin parejas" description="Armá las parejas para este evento" />
               ) : (
                 <div className="space-y-2">
-                  {pairs.map((pair, idx) => (
-                    <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <div>
-                        <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Pareja {idx + 1}:</span>{' '}
-                        <span className="font-medium">{pair.player1Name}</span>
-                        <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
-                        <span className="font-medium">{pair.player2Name}</span>
+                  {pairs.map((pair, idx) => {
+                    const p1Pos = registrations.find(r => r.userId === pair.player1Id)?.userPosition;
+                    const p2Pos = registrations.find(r => r.userId === pair.player2Id)?.userPosition;
+                    return (
+                      <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div>
+                          <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Pareja {idx + 1}:</span>{' '}
+                          <span className="font-medium">{pair.player1Name}</span>
+                          {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
+                          <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
+                          <span className="font-medium">{pair.player2Name}</span>
+                          {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)} disabled={isFinished}>
+                          Eliminar
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)}>
-                        Eliminar
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -364,39 +570,137 @@ export function AdminEventDetailPage() {
       {/* Matches Tab */}
       {activeTab === 'matches' && (
         <div>
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => { resetMatchForm(); setMatchModalOpen(true); }} disabled={pairs.length < 2}>
-              Cargar resultado
+          <div className="flex justify-end gap-2 mb-4 flex-wrap">
+            <Button variant="secondary" onClick={() => setDeleteAllMatchesOpen(true)} disabled={matches.length === 0 || isFinished}>
+              Borrar todos
+            </Button>
+            <Button variant="secondary" onClick={handleAutoMatches} loading={matchLoading} disabled={pairs.length < 4 || isFinished}>
+              Auto-armar partidos
+            </Button>
+            <Button onClick={() => { resetMatchForm(); setMatchModalOpen(true); }} disabled={pairs.length < 2 || isFinished}>
+              Cargar partido
             </Button>
           </div>
           <Card>
             <CardContent className="py-4">
               {matches.length === 0 ? (
-                <EmptyState title="Sin partidos" description="Cargá los resultados de los partidos" />
+                <EmptyState title="Sin partidos" description="Cargá los partidos del evento" />
               ) : (
-                <div className="space-y-3">
-                  {matches.map(m => (
-                    <div key={m.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                          <span className={`font-medium ${m.winnerId === m.pairAId ? 'text-green-700' : ''}`}>{getPairName(m.pairAId)}</span>
-                          <span className="text-sm font-bold">{m.scoreA}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`font-medium ${m.winnerId === m.pairBId ? 'text-green-700' : ''}`}>{getPairName(m.pairBId)}</span>
-                          <span className="text-sm font-bold">{m.scoreB}</span>
+                <div className="space-y-6">
+                  {(() => {
+                    // Group matches by round (or "Sin fecha" for matches without round)
+                    const groups: Record<string, Match[]> = {};
+                    matches.forEach(m => {
+                      const key = m.round ? String(m.round) : 'manual';
+                      if (!groups[key]) groups[key] = [];
+                      groups[key].push(m);
+                    });
+                    const sortedKeys = Object.keys(groups).sort((a, b) => {
+                      if (a === 'manual') return 1;
+                      if (b === 'manual') return -1;
+                      return parseInt(a) - parseInt(b);
+                    });
+                    return sortedKeys.map(key => (
+                      <div key={key}>
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
+                          {key === 'manual' ? 'Sin fecha' : `Fecha ${key}`}
+                        </h3>
+                        <div className="space-y-2">
+                          {groups[key].map(m => {
+                            const hasResult = !!m.winnerId;
+                            return (
+                              <div key={m.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg gap-3">
+                                <div className="space-y-1 flex-1 min-w-0">
+                                  <div className="flex items-center gap-3">
+                                    <span className={`font-medium ${m.winnerId === m.pairAId ? 'text-green-700 dark:text-green-400' : ''}`}>{getPairName(m.pairAId)}</span>
+                                    {m.scoreA && <span className="text-sm font-bold">{m.scoreA}</span>}
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className={`font-medium ${m.winnerId === m.pairBId ? 'text-green-700 dark:text-green-400' : ''}`}>{getPairName(m.pairBId)}</span>
+                                    {m.scoreB && <span className="text-sm font-bold">{m.scoreB}</span>}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <MatchKebab
+                                    hasResult={hasResult}
+                                    onLoadResult={() => openLoadResult(m)}
+                                    onDelete={() => setDeleteMatchId(m.id)}
+                                    disabled={isFinished}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => openEditMatch(m)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Standings Tab */}
+      {activeTab === 'standings' && (
+        <Card>
+          <CardContent className="py-4">
+            {pairs.length === 0 ? (
+              <EmptyState title="Sin parejas" description="Armá las parejas y cargá los resultados para ver la tabla" />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400 w-10">#</th>
+                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Pareja</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PJ</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PG</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PP</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">SG</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">SP</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Set±</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">GG</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">GP</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Game±</th>
+                      <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {standings.map((s, idx) => {
+                      const setDiff = s.setsWon - s.setsLost;
+                      const gameDiff = s.gamesWon - s.gamesLost;
+                      return (
+                        <tr key={s.pairId} className="border-b border-gray-100 dark:border-gray-700">
+                          <td className="py-2.5">
+                            <span className={`font-bold ${idx === 0 ? 'text-yellow-500' : idx < 3 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                              {idx + 1}
+                            </span>
+                          </td>
+                          <td className="py-2.5 font-medium">{s.name}</td>
+                          <td className="py-2.5 text-center">{s.played}</td>
+                          <td className="py-2.5 text-center">{s.won}</td>
+                          <td className="py-2.5 text-center">{s.lost}</td>
+                          <td className="py-2.5 text-center">{s.setsWon}</td>
+                          <td className="py-2.5 text-center">{s.setsLost}</td>
+                          <td className="py-2.5 text-center">{setDiff > 0 ? '+' : ''}{setDiff}</td>
+                          <td className="py-2.5 text-center">{s.gamesWon}</td>
+                          <td className="py-2.5 text-center">{s.gamesLost}</td>
+                          <td className="py-2.5 text-center">{gameDiff > 0 ? '+' : ''}{gameDiff}</td>
+                          <td className="py-2.5 text-center font-bold">{s.points}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
+                  PJ: jugados · PG/PP: partidos ganados/perdidos · SG/SP: sets · GG/GP: games · Pts: puntos
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Cancel Registration Dialog */}
@@ -422,26 +726,196 @@ export function AdminEventDetailPage() {
         </div>
       </Modal>
 
-      {/* Create/Edit Match Modal */}
-      <Modal open={matchModalOpen} onClose={() => { setMatchModalOpen(false); resetMatchForm(); }} title={editingMatchId ? 'Editar resultado' : 'Cargar resultado'}>
+      {/* Create Match Modal (only pairs) */}
+      <Modal open={matchModalOpen} onClose={() => { setMatchModalOpen(false); resetMatchForm(); }} title="Cargar partido">
         <div className="space-y-4">
-          {!editingMatchId && (
-            <>
-              <Select label="Pareja A" options={pairOptions} value={matchPairA} onChange={e => setMatchPairA(e.target.value)} />
-              <Select label="Pareja B" options={pairOptions.filter(o => o.value !== matchPairA)} value={matchPairB} onChange={e => setMatchPairB(e.target.value)} />
-            </>
-          )}
-          <Input label="Resultado Pareja A" placeholder="Ej: 6-4 6-3" value={matchScoreA} onChange={e => setMatchScoreA(e.target.value)} />
-          <Input label="Resultado Pareja B" placeholder="Ej: 4-6 3-6" value={matchScoreB} onChange={e => setMatchScoreB(e.target.value)} />
-          <Select label="Ganador" options={winnerOptions} value={matchWinner} onChange={e => setMatchWinner(e.target.value)} />
+          <Select label="Pareja A" options={pairOptions} value={matchPairA} onChange={e => setMatchPairA(e.target.value)} />
+          <Select label="Pareja B" options={pairOptions.filter(o => o.value !== matchPairA)} value={matchPairB} onChange={e => setMatchPairB(e.target.value)} />
           <div className="flex justify-end gap-3">
             <Button variant="secondary" onClick={() => { setMatchModalOpen(false); resetMatchForm(); }}>Cancelar</Button>
-            <Button onClick={handleCreateMatch} loading={matchLoading} disabled={!matchWinner || !matchScoreA || !matchScoreB}>
-              {editingMatchId ? 'Guardar' : 'Cargar'}
+            <Button onClick={handleCreateMatch} loading={matchLoading} disabled={!matchPairA || !matchPairB}>
+              Crear partido
             </Button>
           </div>
         </div>
       </Modal>
+
+      {/* Load Result Modal */}
+      <Modal open={resultModalOpen} onClose={() => setResultModalOpen(false)} title="Cargar resultado">
+        <div className="space-y-4">
+          <div className="text-sm">
+            <div className="font-medium">{getPairName(resultPairAId)}</div>
+            <div className="text-gray-400 dark:text-gray-500 text-xs my-1">vs</div>
+            <div className="font-medium">{getPairName(resultPairBId)}</div>
+          </div>
+          <Input
+            label="Resultado Pareja A"
+            placeholder="Ej: 6-4 6-3"
+            value={resultScoreA}
+            onChange={e => setResultScoreA(e.target.value)}
+          />
+          <Input
+            label="Resultado Pareja B (calculado)"
+            value={inverseScore(resultScoreA)}
+            readOnly
+            className="bg-gray-50 dark:bg-gray-900 cursor-not-allowed"
+          />
+          {resultScoreA && (() => {
+            const w = determineWinner(resultScoreA);
+            if (!w) return <p className="text-sm text-red-600 dark:text-red-400">Resultado inválido. Formato: "6-4 6-3"</p>;
+            return (
+              <p className="text-sm text-green-700 dark:text-green-400">
+                Ganador: <strong>{getPairName(w === 'A' ? resultPairAId : resultPairBId)}</strong>
+              </p>
+            );
+          })()}
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setResultModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveResult} loading={resultLoading} disabled={!resultScoreA || !determineWinner(resultScoreA)}>
+              Guardar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Match Dialog */}
+      <ConfirmDialog
+        open={!!deleteMatchId}
+        onClose={() => setDeleteMatchId(null)}
+        onConfirm={handleDeleteMatch}
+        title="Eliminar partido"
+        message="¿Estás seguro de que querés eliminar este partido? El ranking se recalculará."
+        confirmLabel="Eliminar"
+        loading={deleteMatchLoading}
+      />
+
+      {/* Delete All Matches Dialog */}
+      <ConfirmDialog
+        open={deleteAllMatchesOpen}
+        onClose={() => setDeleteAllMatchesOpen(false)}
+        onConfirm={handleDeleteAllMatches}
+        title="Borrar todos los partidos"
+        message={`¿Estás seguro de que querés eliminar los ${matches.length} partidos del evento? El ranking se recalculará.`}
+        confirmLabel="Borrar todos"
+        loading={deleteAllMatchesLoading}
+      />
+
+      {/* Delete All Pairs Dialog */}
+      <ConfirmDialog
+        open={deleteAllPairsOpen}
+        onClose={() => setDeleteAllPairsOpen(false)}
+        onConfirm={handleDeleteAllPairs}
+        title="Borrar todas las parejas"
+        message="¿Estás seguro de que querés eliminar todas las parejas? Las parejas que tengan partidos asociados no se eliminarán."
+        confirmLabel="Borrar todas"
+        loading={deleteAllPairsLoading}
+      />
+    </div>
+  );
+}
+
+function RegistrationKebab({
+  paymentStatus,
+  onTogglePayment,
+  onUnregister,
+  disabled,
+}: {
+  paymentStatus: 'pending' | 'paid' | 'cancelled';
+  onTogglePayment: () => void;
+  onUnregister: () => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div className="relative inline-block" ref={menuRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+          <button
+            onClick={() => { onTogglePayment(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            {paymentStatus === 'paid' ? <Clock className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+            {paymentStatus === 'paid' ? 'Marcar pendiente' : 'Marcar pagado'}
+          </button>
+          <button
+            onClick={() => { onUnregister(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <UserMinus className="h-4 w-4" />
+            Dar de baja
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MatchKebab({
+  hasResult,
+  onLoadResult,
+  onDelete,
+  disabled,
+}: {
+  hasResult: boolean;
+  onLoadResult: () => void;
+  onDelete: () => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div className="relative inline-block" ref={menuRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+          <button
+            onClick={() => { onLoadResult(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <Pencil className="h-4 w-4" />
+            {hasResult ? 'Editar resultado' : 'Cargar resultado'}
+          </button>
+          <button
+            onClick={() => { onDelete(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <Trash2 className="h-4 w-4" />
+            Borrar partido
+          </button>
+        </div>
+      )}
     </div>
   );
 }

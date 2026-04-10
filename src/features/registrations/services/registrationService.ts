@@ -15,6 +15,11 @@ import type { Registration, AppUser } from '@/types';
 const registrationsRef = collection(db, 'registrations');
 
 export async function registerForEvent(eventId: string, user: AppUser): Promise<void> {
+  // Check duplicate before transaction (queries can't run inside transactions)
+  const existingQuery = query(registrationsRef, where('eventId', '==', eventId), where('userId', '==', user.id), where('status', '==', 'active'));
+  const existingSnap = await getDocs(existingQuery);
+  if (!existingSnap.empty) throw new Error('Ya estás inscripto en este evento');
+
   await runTransaction(db, async (transaction) => {
     const eventRef = doc(db, 'events', eventId);
     const eventSnap = await transaction.get(eventRef);
@@ -24,11 +29,6 @@ export async function registerForEvent(eventId: string, user: AppUser): Promise<
     const eventData = eventSnap.data();
     if (eventData.status !== 'published') throw new Error('El evento no está abierto para inscripciones');
     if (eventData.currentRegistrations >= eventData.maxCapacity) throw new Error('El evento está lleno');
-
-    // Check duplicate
-    const existingQuery = query(registrationsRef, where('eventId', '==', eventId), where('userId', '==', user.id), where('status', '==', 'active'));
-    const existingSnap = await getDocs(existingQuery);
-    if (!existingSnap.empty) throw new Error('Ya estás inscripto en este evento');
 
     const regRef = doc(registrationsRef);
     transaction.set(regRef, {
@@ -74,6 +74,13 @@ export async function getEventRegistrations(eventId: string): Promise<Registrati
   const q = query(registrationsRef, where('eventId', '==', eventId), where('status', '==', 'active'));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Registration));
+}
+
+export async function getUserEventRegistration(eventId: string, userId: string): Promise<Registration | null> {
+  const q = query(registrationsRef, where('eventId', '==', eventId), where('userId', '==', userId), where('status', '==', 'active'));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Registration;
 }
 
 export async function getUserRegistrations(userId: string): Promise<Registration[]> {

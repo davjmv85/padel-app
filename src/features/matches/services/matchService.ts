@@ -3,6 +3,7 @@ import {
   doc,
   addDoc,
   updateDoc,
+  deleteDoc,
   getDocs,
   query,
   where,
@@ -17,21 +18,19 @@ export async function createMatch(
   eventId: string,
   pairAId: string,
   pairBId: string,
-  scoreA: string,
-  scoreB: string,
-  winnerId: string,
-  createdBy: string
+  createdBy: string,
+  round?: number
 ): Promise<string> {
   if (pairAId === pairBId) throw new Error('Las parejas deben ser diferentes');
-  if (winnerId !== pairAId && winnerId !== pairBId) throw new Error('El ganador debe ser una de las parejas');
 
   const docRef = await addDoc(matchesRef, {
     eventId,
     pairAId,
     pairBId,
-    scoreA,
-    scoreB,
-    winnerId,
+    scoreA: '',
+    scoreB: '',
+    winnerId: '',
+    round: round ?? null,
     createdBy,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -57,4 +56,8 @@ export async function updateMatch(
     winnerId,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function deleteMatch(matchId: string): Promise<void> {
+  await deleteDoc(doc(db, 'matches', matchId));
 }

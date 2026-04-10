@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Calendar } from 'lucide-react';
+import { Plus, Calendar, MoreVertical, Settings, Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEvents } from '../hooks/useEvents';
 import { deleteEvent } from '../services/eventService';
@@ -12,6 +12,55 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS } from '@/utils/constants';
 import toast from 'react-hot-toast';
+
+function ActionMenu({ eventId, isAdmin, onDelete }: { eventId: string; isAdmin: boolean; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={(e) => { e.preventDefault(); setOpen(!open); }}
+        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+      >
+        <MoreVertical className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+          <button
+            onClick={() => { navigate(`/admin/events/${eventId}`); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <Settings className="h-4 w-4" /> Gestionar
+          </button>
+          <button
+            onClick={() => { navigate(`/admin/events/${eventId}/edit`); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <Pencil className="h-4 w-4" /> Editar
+          </button>
+          {isAdmin && (
+            <button
+              onClick={() => { onDelete(); setOpen(false); }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <Trash2 className="h-4 w-4" /> Eliminar
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AdminEventListPage() {
   const { isAdmin } = useAuth();
@@ -65,31 +114,24 @@ export function AdminEventListPage() {
             <Card key={event.id} className="hover:shadow-md transition-shadow">
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
-                  <Link to={`/admin/events/${event.id}`} className="flex-1">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <h3 className="font-semibold">{event.name}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time} | {event.location}
-                        </p>
-                      </div>
-                    </div>
+                  <Link to={`/admin/events/${event.id}`} className="flex-1 min-w-0">
+                    <h3 className="font-semibold truncate">{event.name}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time} | {event.location}
+                    </p>
                   </Link>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-3 ml-4 shrink-0">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">
                       {event.currentRegistrations}/{event.maxCapacity}
                     </span>
                     <Badge className={EVENT_STATUS_COLORS[event.status]}>
                       {EVENT_STATUSES[event.status]}
                     </Badge>
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/events/${event.id}/edit`)}>
-                      Editar
-                    </Button>
-                    {isAdmin && (
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(event.id)}>
-                        Eliminar
-                      </Button>
-                    )}
+                    <ActionMenu
+                      eventId={event.id}
+                      isAdmin={isAdmin}
+                      onDelete={() => setDeleteId(event.id)}
+                    />
                   </div>
                 </div>
               </CardContent>

@@ -12,16 +12,16 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
-      return isAuthenticated() && getUserRole() == 'admin';
+      return isAuthenticated() && userDoc().role == 'admin';
     }
 
     function isStaff() {
-      return isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'collaborator');
+      return isAuthenticated() && userDoc().role in ['admin', 'collaborator'];
     }
 
     // Users collection
@@ -35,7 +35,11 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if isAuthenticated();
       allow create: if isStaff();
-      allow update: if isStaff();
+      // Staff can update anything; players can only update currentRegistrations (via inscription)
+      allow update: if isAuthenticated() && (
+        isStaff() ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentRegistrations', 'updatedAt']))
+      );
       allow delete: if isAdmin();
     }
 
@@ -43,10 +47,7 @@ service cloud.firestore {
     match /registrations/{registrationId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        isStaff() ||
-        (isOwner(resource.data.userId) && request.resource.data.status == 'cancelled')
-      );
+      allow update: if isAuthenticated();
     }
 
     // Event pairs collection
@@ -58,20 +59,20 @@ service cloud.firestore {
     // Matches collection
     match /matches/{matchId} {
       allow read: if isAuthenticated();
-      allow create, update: if isStaff();
+      allow create, update, delete: if isStaff();
     }
 
     // Rankings collection
     match /rankings/{rankingId} {
       allow read: if isAuthenticated();
-      allow write: if false; // Only Cloud Functions can write
+      allow write: if isStaff();
     }
 
     // Waitlist collection
     match /waitlist/{waitlistId} {
-      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update, delete: if false; // Only Cloud Functions
+      allow update, delete: if false;
     }
   }
 }

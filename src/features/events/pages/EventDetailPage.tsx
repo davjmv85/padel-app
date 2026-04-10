@@ -4,28 +4,32 @@ import { Calendar, MapPin, Users, DollarSign, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { getEvent } from '../services/eventService';
-import { getEventRegistrations, registerForEvent, cancelRegistration, addToWaitlist } from '@/features/registrations/services/registrationService';
+import { getUserEventRegistration, registerForEvent, cancelRegistration, addToWaitlist } from '@/features/registrations/services/registrationService';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS } from '@/utils/constants';
+import { formatPrice } from '@/utils/format';
 import type { PadelEvent, Registration } from '@/types';
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const { appUser } = useAuth();
   const [event, setEvent] = useState<PadelEvent | null>(null);
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [myRegistration, setMyRegistration] = useState<Registration | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
   const loadData = async () => {
-    if (!eventId) return;
+    if (!eventId || !appUser) return;
     try {
-      const [ev, regs] = await Promise.all([getEvent(eventId), getEventRegistrations(eventId)]);
+      const [ev, myReg] = await Promise.all([
+        getEvent(eventId),
+        getUserEventRegistration(eventId, appUser.id),
+      ]);
       setEvent(ev);
-      setRegistrations(regs);
+      setMyRegistration(myReg);
     } finally {
       setLoading(false);
     }
@@ -37,7 +41,6 @@ export function EventDetailPage() {
 
   if (loading || !event) return <Spinner />;
 
-  const myRegistration = registrations.find((r) => r.userId === appUser?.id);
   const isRegistered = !!myRegistration;
   const isFull = event.currentRegistrations >= event.maxCapacity;
   const canRegister = event.status === 'published' && !isRegistered && !isFull;
@@ -128,7 +131,7 @@ export function EventDetailPage() {
               <DollarSign className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               <div>
                 <p className="text-sm text-gray-400 dark:text-gray-500">Precio</p>
-                <p className="font-medium text-gray-900 dark:text-gray-100">${event.price}</p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">${formatPrice(event.price)}</p>
               </div>
             </div>
           </div>

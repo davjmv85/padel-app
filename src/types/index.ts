@@ -42,6 +42,7 @@ export interface PadelEvent {
   status: EventStatus;
   currentRegistrations: number;
   createdBy: string;
+  createdByEmail?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -83,6 +84,7 @@ export interface Match {
   scoreA: string;
   scoreB: string;
   winnerId: string;
+  round?: number;
   createdBy: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;

@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Users, DollarSign } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 import { getEvents } from '../services/eventService';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS } from '@/utils/constants';
+import { formatPrice } from '@/utils/format';
 import type { PadelEvent } from '@/types';
 
 export function EventListPage() {
-  const { isStaff } = useAuth();
   const [events, setEvents] = useState<PadelEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +35,7 @@ export function EventListPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => (
-            <Link key={event.id} to={isStaff ? `/admin/events/${event.id}` : `/events/${event.id}`}>
+            <Link key={event.id} to={`/events/${event.id}`}>
               <Card className="hover:shadow-md transition-shadow h-full">
                 <CardContent className="pt-4">
                   <div className="flex items-start justify-between mb-3">
@@ -62,7 +61,7 @@ export function EventListPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4" />
-                      <span>${event.price}</span>
+                      <span>${formatPrice(event.price)}</span>
                     </div>
                   </div>
                 </CardContent>

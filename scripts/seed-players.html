@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head><title>Seed Players</title>
+<style>
+  body { font-family: system-ui; padding: 20px; max-width: 600px; margin: 0 auto; }
+  button { padding: 12px 24px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; }
+  button:disabled { opacity: 0.5; }
+  pre { background: #111; color: #4ade80; padding: 16px; border-radius: 8px; font-size: 13px; overflow-x: auto; white-space: pre-wrap; max-height: 70vh; overflow-y: auto; }
+</style>
+</head>
+<body>
+<h2>Seed: 12 jugadores + inscripcion</h2>
+<p>Login con Google, despues se crean los jugadores y se inscriben al evento publicado.</p>
+<button id="btn" onclick="run()">Login con Google + Crear jugadores</button>
+<pre id="log"></pre>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, addDoc, updateDoc, collection, query, where, getDocs, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const app = initializeApp({
+  apiKey: "AIzaSyDdynYpSpw5R3MI5WTsjmQ_cDIuByqgUhc",
+  authDomain: "padel-app-x4-685d9.firebaseapp.com",
+  projectId: "padel-app-x4-685d9",
+  storageBucket: "padel-app-x4-685d9.firebasestorage.app",
+  messagingSenderId: "242912107432",
+  appId: "1:242912107432:web:b90ea78269e5b625ae5b9d"
+});
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+const logEl = document.getElementById('log');
+function print(msg) { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+
+const players = [
+  { firstName: 'Martin', lastName: 'Gonzalez', position: 'drive', email: 'martin.gonzalez@test.com' },
+  { firstName: 'Lucas', lastName: 'Rodriguez', position: 'reves', email: 'lucas.rodriguez@test.com' },
+  { firstName: 'Federico', lastName: 'Lopez', position: 'drive', email: 'fede.lopez@test.com' },
+  { firstName: 'Santiago', lastName: 'Martinez', position: 'indistinto', email: 'santi.martinez@test.com' },
+  { firstName: 'Nicolas', lastName: 'Garcia', position: 'reves', email: 'nico.garcia@test.com' },
+  { firstName: 'Tomas', lastName: 'Fernandez', position: 'drive', email: 'tomas.fernandez@test.com' },
+  { firstName: 'Matias', lastName: 'Perez', position: 'indistinto', email: 'matias.perez@test.com' },
+  { firstName: 'Agustin', lastName: 'Sanchez', position: 'reves', email: 'agustin.sanchez@test.com' },
+  { firstName: 'Joaquin', lastName: 'Diaz', position: 'drive', email: 'joaquin.diaz@test.com' },
+  { firstName: 'Sebastian', lastName: 'Torres', position: 'indistinto', email: 'seba.torres@test.com' },
+  { firstName: 'Diego', lastName: 'Ramirez', position: 'reves', email: 'diego.ramirez@test.com' },
+  { firstName: 'Pablo', lastName: 'Alvarez', position: 'drive', email: 'pablo.alvarez@test.com' },
+];
+
+window.run = async function() {
+  document.getElementById('btn').disabled = true;
+  try {
+    const now = Timestamp.now();
+
+    // 1. Login with Google
+    print('Paso 1: Login con Google...');
+    const provider = new GoogleAuthProvider();
+    const adminCred = await signInWithPopup(auth, provider);
+    print('OK: ' + adminCred.user.email);
+
+    // 2. Find published event
+    print('\nPaso 2: Buscando evento publicado...');
+    const eventsSnap = await getDocs(query(collection(db, 'events'), where('status', '==', 'published')));
+    if (eventsSnap.empty) { print('ERROR: No hay eventos publicados'); return; }
+    const eventId = eventsSnap.docs[0].id;
+    const eventData = eventsSnap.docs[0].data();
+    print('OK: ' + eventData.name + ' (' + eventData.currentRegistrations + '/' + eventData.maxCapacity + ')');
+
+    // 3. Sign out admin
+    await signOut(auth);
+
+    // 4. Create players and register
+    print('\nPaso 3: Creando jugadores...\n');
+    let registered = 0;
+
+    for (const player of players) {
+      const name = player.firstName + ' ' + player.lastName;
+      let uid;
+
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, player.email, 'padel123');
+        uid = cred.user.uid;
+      } catch (e) {
+        print('X ' + name + ': ' + e.code);
+        await signOut(auth).catch(() => {});
+        continue;
+      }
+
+      try {
+        await setDoc(doc(db, 'users', uid), {
+          email: player.email, displayName: name,
+          firstName: player.firstName, lastName: player.lastName,
+          position: player.position, role: 'player',
+          createdAt: now, updatedAt: now,
+        });
+        await addDoc(collection(db, 'registrations'), {
+          eventId, userId: uid, userName: name,
+          userPosition: player.position, paymentStatus: 'pending',
+          status: 'active', createdAt: now, updatedAt: now,
+        });
+        registered++;
+        print('OK ' + name + ' - inscripto');
+      } catch (e) {
+        print('X ' + name + ': ' + e.message);
+      }
+
+      await signOut(auth);
+    }
+
+    // 5. Login admin again to update counter
+    print('\nPaso 4: Actualizando contador...');
+    await signInWithPopup(auth, new GoogleAuthProvider());
+    await updateDoc(doc(db, 'events', eventId), {
+      currentRegistrations: eventData.currentRegistrations + registered,
+      updatedAt: now,
+    });
+    print('OK: ' + (eventData.currentRegistrations + registered) + '/' + eventData.maxCapacity);
+
+    print('\n================================');
+    print('LISTO! ' + registered + ' jugadores creados e inscriptos');
+    print('Password para todos: padel123');
+    print('================================');
+
+  } catch (e) {
+    print('\nERROR: ' + e.message);
+  }
+  document.getElementById('btn').disabled = false;
+}
+</script>
+</body>
+</html>
