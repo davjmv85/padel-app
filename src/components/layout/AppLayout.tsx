@@ -35,8 +35,11 @@ export function AppLayout() {
 
   const staffNav: NavItem[] = [
     { label: 'Dashboard', path: '/admin', icon: <LayoutDashboard className="h-5 w-5" /> },
-    { label: 'Eventos', path: '/admin/events', icon: <Calendar className="h-5 w-5" /> },
+    { label: 'Gestión Eventos', path: '/admin/events', icon: <Calendar className="h-5 w-5" /> },
+    { label: 'Eventos', path: '/', icon: <Calendar className="h-5 w-5" /> },
+    { label: 'Mis Inscripciones', path: '/my-registrations', icon: <ClipboardList className="h-5 w-5" /> },
     { label: 'Ranking', path: '/ranking', icon: <Trophy className="h-5 w-5" /> },
+    { label: 'Mi Perfil', path: '/profile', icon: <User className="h-5 w-5" /> },
   ];
 
   const adminNav: NavItem[] = appUser?.role === 'admin'
@@ -57,7 +60,7 @@ export function AppLayout() {
         <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100">
           <Menu className="h-6 w-6" />
         </button>
-        <span className="font-bold text-lg text-blue-800/30">Padel App</span>
+        <img src="/logo.svg" alt="Px4Dx3L" className="h-12 mx-auto" />
         <div className="w-10" />
       </div>
 
@@ -118,7 +121,7 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-        <span className="font-bold text-xl text-blue-600">Padel App</span>
+        <img src="/logo.svg" alt="Px4Dx3L" className="h-12 mx-auto" />
         {onClose && (
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 lg:hidden">
             <X className="h-5 w-5" />
@@ -133,9 +136,8 @@ function SidebarContent({
               key={item.path}
               to={item.path}
               onClick={onClose}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
             >
               {item.icon}
               {item.label}

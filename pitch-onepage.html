@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Padel App - One Sheet</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    width: 210mm; height: 297mm;
+    margin: 0 auto;
+    background: #0d2147;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Court lines decoration */
+  body::before {
+    content: '';
+    position: absolute;
+    top: 60%;
+    left: 0; right: 0;
+    height: 2px;
+    background: rgba(255,255,255,0.08);
+  }
+  body::after {
+    content: '';
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    width: 2px;
+    bottom: 0;
+    background: rgba(255,255,255,0.08);
+  }
+
+  .container { padding: 28px 36px; height: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.15); padding-bottom: 18px; }
+  .logo { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+  .logo span { color: #60a5fa; }
+  .tagline { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+  .url { text-align: right; }
+  .url a { color: #60a5fa; font-size: 13px; text-decoration: none; font-weight: 600; }
+  .url p { color: #64748b; font-size: 11px; margin-top: 2px; }
+
+  /* Problem */
+  .problem { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+  .problem h2 { font-size: 13px; color: #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; }
+  .problem p { font-size: 12.5px; color: #cbd5e1; line-height: 1.5; }
+
+  /* Solution */
+  .solution { margin-bottom: 18px; }
+  .solution h2 { font-size: 13px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; }
+  .solution p { font-size: 13px; color: #e2e8f0; line-height: 1.5; }
+
+  /* Features grid */
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .feature-col h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .feature-col:first-child h3 { color: #60a5fa; }
+  .feature-col:last-child h3 { color: #34d399; }
+  .feature-col ul { list-style: none; }
+  .feature-col li { font-size: 11.5px; color: #cbd5e1; padding: 3px 0; padding-left: 16px; position: relative; line-height: 1.4; }
+  .feature-col li::before { content: ''; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; }
+  .feature-col:first-child li::before { background: #3b82f6; }
+  .feature-col:last-child li::before { background: #10b981; }
+
+  /* Comparison table */
+  .comparison { margin-bottom: 18px; }
+  .comparison h2 { font-size: 13px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; }
+  .comparison table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .comparison th { text-align: left; padding: 6px 10px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .comparison th:first-child { color: #f87171; background: rgba(239,68,68,0.1); border-radius: 6px 0 0 6px; }
+  .comparison th:last-child { color: #34d399; background: rgba(16,185,129,0.1); border-radius: 0 6px 6px 0; }
+  .comparison td { padding: 5px 10px; color: #cbd5e1; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+  /* Roadmap */
+  .roadmap { margin-bottom: 18px; }
+  .roadmap h2 { font-size: 13px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; }
+  .roadmap-items { display: flex; gap: 8px; }
+  .roadmap-item { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px; }
+  .roadmap-item .phase { font-size: 10px; color: #60a5fa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .roadmap-item p { font-size: 11px; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
+
+  /* Tech strip */
+  .tech { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tech-tag { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.2); color: #93c5fd; font-size: 10.5px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+
+  /* Footer */
+  .footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px; }
+  .footer-left p { font-size: 11px; color: #64748b; }
+  .footer-left p strong { color: #94a3b8; }
+  .contact { text-align: right; }
+  .contact p { font-size: 11px; color: #94a3b8; }
+  .contact a { color: #60a5fa; text-decoration: none; }
+
+  /* Ball decoration */
+  .ball { position: absolute; bottom: 120px; right: 80px; width: 28px; height: 28px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #e8d44d, #c9b422); opacity: 0.15; z-index: 0; }
+  .ball::after { content: ''; position: absolute; top: 3px; left: 6px; width: 16px; height: 20px; border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; border-left-color: transparent; border-bottom-color: transparent; transform: rotate(-30deg); }
+</style>
+</head>
+<body>
+
+<div class="ball"></div>
+
+<div class="container">
+
+  <div class="header">
+    <div>
+      <div class="logo">Padel<span>App</span></div>
+      <div class="tagline">Organiza torneos como un profesional</div>
+    </div>
+    <div class="url">
+      <a href="https://padel-events.web.app">padel-events.web.app</a>
+      <p>MVP funcional y deployado</p>
+    </div>
+  </div>
+
+  <div class="problem">
+    <h2>El problema</h2>
+    <p>Organizar torneos de padel hoy es un caos de grupos de WhatsApp, planillas de Excel, pagos sin control y cero trazabilidad. Los organizadores pierden tiempo, los jugadores pierden informacion.</p>
+  </div>
+
+  <div class="solution">
+    <h2>La solucion</h2>
+    <p><strong>Padel App</strong> centraliza toda la organizacion de eventos de padel en una plataforma web: inscripciones, pagos, parejas, resultados y ranking automatico. Simple, rapida y profesional.</p>
+  </div>
+
+  <div class="features">
+    <div class="feature-col">
+      <h3>Para el organizador</h3>
+      <ul>
+        <li>Crear y gestionar eventos con estado, cupo y precio</li>
+        <li>Control automatico de cupo maximo</li>
+        <li>Lista de espera con notificacion</li>
+        <li>Gestion de pagos por jugador</li>
+        <li>Armado manual de parejas con validacion</li>
+        <li>Carga y edicion de resultados</li>
+        <li>Ranking automatico individual</li>
+        <li>Asignar colaboradores para co-gestionar</li>
+      </ul>
+    </div>
+    <div class="feature-col">
+      <h3>Para el jugador</h3>
+      <ul>
+        <li>Registro con email o Google en 1 click</li>
+        <li>Perfil con posicion preferida</li>
+        <li>Ver eventos disponibles con cupos en tiempo real</li>
+        <li>Inscripcion instantanea</li>
+        <li>Alerta de cupo si el evento esta lleno</li>
+        <li>Historial de inscripciones</li>
+        <li>Consultar ranking general</li>
+        <li>Modo claro y oscuro</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="comparison">
+    <h2>Antes vs. Despues</h2>
+    <table>
+      <tr><th>Sin Padel App</th><th>Con Padel App</th></tr>
+      <tr><td>WhatsApp desbordado</td><td>Todo centralizado en una plataforma</td></tr>
+      <tr><td>Excel para pagos</td><td>Control de pagos integrado</td></tr>
+      <tr><td>Sin control de cupo real</td><td>Cupo automatico + lista de espera</td></tr>
+      <tr><td>Resultados en papel</td><td>Resultados digitales + ranking automatico</td></tr>
+      <tr><td>Cada torneo empieza de cero</td><td>Ranking acumulativo entre eventos</td></tr>
+    </table>
+  </div>
+
+  <div class="roadmap">
+    <h2>Roadmap</h2>
+    <div class="roadmap-items">
+      <div class="roadmap-item">
+        <div class="phase">Fase 1 - Actual</div>
+        <p>MVP web completo con gestion de eventos, inscripciones, pagos, parejas, resultados y ranking</p>
+      </div>
+      <div class="roadmap-item">
+        <div class="phase">Fase 2</div>
+        <p>Notificaciones por email, cobro online (MercadoPago), estadisticas avanzadas</p>
+      </div>
+      <div class="roadmap-item">
+        <div class="phase">Fase 3</div>
+        <p>App movil nativa (iOS/Android), fases de torneo, categorias, ligas</p>
+      </div>
+    </div>
+  </div>
+<!-- 
+  <div class="tech">
+    <span class="tech-tag">React</span>
+    <span class="tech-tag">TypeScript</span>
+    <span class="tech-tag">Firebase</span>
+    <span class="tech-tag">Tailwind CSS</span>
+    <span class="tech-tag">Cloud Functions</span>
+    <span class="tech-tag">Responsive</span>
+    <span class="tech-tag">Preparado para mobile</span>
+  </div> -->
+
+  <div class="footer">
+    <div class="footer-left">
+      <p><strong>Seguridad:</strong> 3 roles (admin, colaborador, jugador) con permisos en frontend y backend</p>
+      <!-- <p><strong>Modelo:</strong> Freemium / Comision por inscripcion / Suscripcion para clubes</p> -->
+    </div>
+    <div class="contact">
+      <p><a href="https://padel-events.web.app">padel-events.web.app</a></p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
