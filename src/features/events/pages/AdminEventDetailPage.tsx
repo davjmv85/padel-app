@@ -74,6 +74,10 @@ export function AdminEventDetailPage() {
   const [deleteAllPairsOpen, setDeleteAllPairsOpen] = useState(false);
   const [deleteAllPairsLoading, setDeleteAllPairsLoading] = useState(false);
 
+  // Tournament builder
+  const [tournamentFechas, setTournamentFechas] = useState<string>('');
+  const [tournamentBusy, setTournamentBusy] = useState(false);
+
   const loadData = async () => {
     if (!eventId) return;
     try {
@@ -408,6 +412,184 @@ export function AdminEventDetailPage() {
     setMatchFormRound(null);
   };
 
+  // ============================================================
+  // Tournament builder: armar / limpiar / recalcular
+  // ============================================================
+
+  const handleArmarTorneo = async (fechasOverride?: string) => {
+    if (!eventId || !appUser) return;
+    const fechasStr = fechasOverride ?? tournamentFechas;
+    const fechas = parseInt(fechasStr);
+    if (isNaN(fechas) || fechas < 1) {
+      toast.error('Ingresá una cantidad válida de fechas');
+      return;
+    }
+
+    const players = registrations.filter(r => r.status === 'active');
+    if (players.length < 4) {
+      toast.error('Se necesitan al menos 4 jugadores inscriptos');
+      return;
+    }
+    if (players.length % 4 !== 0) {
+      toast.error(`Se necesita un múltiplo de 4 jugadores (hay ${players.length})`);
+      return;
+    }
+
+    setTournamentBusy(true);
+    try {
+      const isLibreType = event?.tournamentType === 'libre';
+      const shuffleArr = <T,>(arr: T[]): T[] => arr.map(v => [Math.random(), v] as const).sort((a, b) => a[0] - b[0]).map(([, v]) => v);
+      const pKey = (a: string, b: string) => [a, b].sort().join('|');
+      type Player = typeof players[0];
+
+      // Helper: build pairs from a player pool, avoiding forbidden combos
+      const buildPairs = (pool: Player[], forbidden: Set<string>): [Player, Player][] => {
+        const drives = shuffleArr(pool.filter(p => p.userPosition === 'drive'));
+        const reves = shuffleArr(pool.filter(p => p.userPosition === 'reves'));
+        const indistintos = shuffleArr(pool.filter(p => p.userPosition === 'indistinto'));
+        const result: [Player, Player][] = [];
+
+        const tryPick = (a: Player, list: Player[]): Player | null => {
+          const idx = list.findIndex(b => !forbidden.has(pKey(a.userId, b.userId)));
+          if (idx === -1) return null;
+          const [picked] = list.splice(idx, 1);
+          forbidden.add(pKey(a.userId, picked.userId));
+          return picked;
+        };
+
+        const leftoverDrives: Player[] = [];
+        while (drives.length > 0 && reves.length > 0) {
+          const d = drives.pop()!;
+          const r = tryPick(d, reves);
+          if (r) result.push([d, r]);
+          else leftoverDrives.push(d);
+        }
+        drives.push(...leftoverDrives);
+        while ((drives.length > 0 || reves.length > 0) && indistintos.length > 0) {
+          const main = drives.length > 0 ? drives.pop()! : reves.pop()!;
+          const i = tryPick(main, indistintos);
+          if (i) result.push([main, i]);
+        }
+        while (indistintos.length >= 2) {
+          const a = indistintos.pop()!;
+          const b = tryPick(a, indistintos);
+          if (b) result.push([a, b]);
+        }
+        while (drives.length >= 2) {
+          const a = drives.pop()!;
+          const b = tryPick(a, drives);
+          if (b) result.push([a, b]);
+        }
+        while (reves.length >= 2) {
+          const a = reves.pop()!;
+          const b = tryPick(a, reves);
+          if (b) result.push([a, b]);
+        }
+        return result;
+      };
+
+      if (isLibreType) {
+        // Libre: per fecha, build unique pairs and pair them up into matches
+        const allPairKeys = new Set<string>();
+        for (let f = 1; f <= fechas; f++) {
+          const fechaPairs = buildPairs([...players], allPairKeys);
+          if (fechaPairs.length * 2 < players.length) {
+            throw new Error(`No se pudieron formar todas las parejas únicas en Fecha ${f}. Probá con menos fechas.`);
+          }
+          // Save pairs for this fecha
+          const createdIds: string[] = [];
+          for (const [p1, p2] of fechaPairs) {
+            const id = await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName, f);
+            createdIds.push(id);
+          }
+          // Generate matches inside the fecha (random pairings of pairs)
+          const shuffledPairs = shuffleArr(createdIds);
+          for (let i = 0; i + 1 < shuffledPairs.length; i += 2) {
+            await createMatch(eventId, shuffledPairs[i], shuffledPairs[i + 1], appUser.id, f);
+          }
+        }
+      } else {
+        // Americano: build pairs once, then round-robin across fechas
+        const allPairs = buildPairs([...players], new Set());
+        const numPairs = allPairs.length;
+        if (numPairs * 2 < players.length) {
+          throw new Error('No se pudieron armar todas las parejas');
+        }
+        if (fechas > numPairs - 1) {
+          throw new Error(`Con ${numPairs} parejas, máximo ${numPairs - 1} fechas (cada pareja juega contra cada otra como mucho una vez).`);
+        }
+
+        // Save pairs (no round in americano)
+        const pairIds: string[] = [];
+        for (const [p1, p2] of allPairs) {
+          const id = await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName);
+          pairIds.push(id);
+        }
+
+        // Round-robin rotation
+        const ids = shuffleArr([...pairIds]);
+        const N = ids.length;
+        const mKey = (a: string, b: string) => [a, b].sort().join('|');
+        const generatedKeys = new Set<string>();
+        const matchesToCreate: { a: string; b: string; round: number }[] = [];
+
+        for (let r = 0; r < fechas; r++) {
+          for (let i = 0; i < N / 2; i++) {
+            const a = ids[i];
+            const b = ids[N - 1 - i];
+            const key = mKey(a, b);
+            if (!generatedKeys.has(key)) {
+              matchesToCreate.push({ a, b, round: r + 1 });
+              generatedKeys.add(key);
+            }
+          }
+          const last = ids.pop()!;
+          ids.splice(1, 0, last);
+        }
+
+        for (const m of matchesToCreate) {
+          await createMatch(eventId, m.a, m.b, appUser.id, m.round);
+        }
+      }
+
+      toast.success('Torneo armado');
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al armar torneo');
+    } finally {
+      setTournamentBusy(false);
+    }
+  };
+
+  const handleLimpiarTorneo = async (resetInput = true) => {
+    if (!eventId) return;
+    setTournamentBusy(true);
+    try {
+      // Delete matches first (they reference pairs)
+      for (const m of matches) {
+        await deleteMatch(m.id);
+      }
+      // Then delete pairs
+      for (const p of pairs) {
+        await deletePair(p.id);
+      }
+      await recalculateRankings();
+      if (resetInput) setTournamentFechas('');
+      toast.success('Torneo limpiado');
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al limpiar');
+    } finally {
+      setTournamentBusy(false);
+    }
+  };
+
+  const handleRecalcularTorneo = async () => {
+    const f = tournamentFechas;
+    await handleLimpiarTorneo(false);
+    await handleArmarTorneo(f);
+  };
+
   const openLoadResult = (m: Match) => {
     setResultMatchId(m.id);
     setResultPairAId(m.pairAId);
@@ -658,6 +840,50 @@ export function AdminEventDetailPage() {
       )}
 
       {/* Pairs Tab */}
+      {/* Tournament builder (shared between americano and libre) */}
+      {activeTab === 'pairs' && (
+        <Card className="mb-4">
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex-1 min-w-[180px]">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cantidad de fechas</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={tournamentFechas}
+                  onChange={(e) => setTournamentFechas(e.target.value)}
+                  disabled={isFinished || tournamentBusy || (pairs.length > 0 || matches.length > 0)}
+                  className="block w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Ej: 3"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {pairs.length === 0 && matches.length === 0 ? (
+                  <Button onClick={() => handleArmarTorneo()} loading={tournamentBusy} disabled={isFinished || !tournamentFechas}>
+                    Armar torneo
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="secondary" onClick={handleRecalcularTorneo} loading={tournamentBusy} disabled={isFinished || !tournamentFechas}>
+                      Recalcular
+                    </Button>
+                    <Button variant="danger" onClick={() => handleLimpiarTorneo()} loading={tournamentBusy} disabled={isFinished}>
+                      Limpiar
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+              {event?.tournamentType === 'libre'
+                ? 'Genera parejas distintas en cada fecha y arma los partidos automáticamente.'
+                : 'Genera parejas fijas y distribuye los partidos en las fechas (round-robin sin repetir rivales).'}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {activeTab === 'pairs' && !isLibre && (
         <div>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
