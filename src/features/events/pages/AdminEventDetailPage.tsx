@@ -489,23 +489,46 @@ export function AdminEventDetailPage() {
       };
 
       if (isLibreType) {
-        // Libre: per fecha, build unique pairs and pair them up into matches
-        const allPairKeys = new Set<string>();
-        for (let f = 1; f <= fechas; f++) {
-          const fechaPairs = buildPairs([...players], allPairKeys);
-          if (fechaPairs.length * 2 < players.length) {
-            throw new Error(`No se pudieron formar todas las parejas únicas en Fecha ${f}. Probá con menos fechas.`);
+        // Libre: pre-compute all fechas in memory with retries, then write to Firestore.
+        // The greedy algorithm can fail to find a valid arrangement on certain shuffles
+        // even when one exists, so we retry up to MAX_ATTEMPTS times with fresh randomization.
+        const MAX_ATTEMPTS = 200;
+        let plan: { pairs: [Player, Player][] }[] | null = null;
+
+        for (let attempt = 0; attempt < MAX_ATTEMPTS && !plan; attempt++) {
+          const allPairKeys = new Set<string>();
+          const fechasPlan: { pairs: [Player, Player][] }[] = [];
+          let ok = true;
+
+          for (let f = 1; f <= fechas; f++) {
+            const fechaPairs = buildPairs([...players], allPairKeys);
+            if (fechaPairs.length * 2 < players.length) {
+              ok = false;
+              break;
+            }
+            fechasPlan.push({ pairs: fechaPairs });
+            // forbidden set was already mutated by buildPairs
           }
-          // Save pairs for this fecha
+
+          if (ok) plan = fechasPlan;
+        }
+
+        if (!plan) {
+          throw new Error(`No se pudo armar el torneo con ${fechas} fechas (probé ${MAX_ATTEMPTS} configuraciones). Probá con menos fechas.`);
+        }
+
+        // Now persist the plan
+        for (let f = 0; f < plan.length; f++) {
+          const round = f + 1;
           const createdIds: string[] = [];
-          for (const [p1, p2] of fechaPairs) {
-            const id = await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName, f);
+          for (const [p1, p2] of plan[f].pairs) {
+            const id = await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName, round);
             createdIds.push(id);
           }
           // Generate matches inside the fecha (random pairings of pairs)
           const shuffledPairs = shuffleArr(createdIds);
           for (let i = 0; i + 1 < shuffledPairs.length; i += 2) {
-            await createMatch(eventId, shuffledPairs[i], shuffledPairs[i + 1], appUser.id, f);
+            await createMatch(eventId, shuffledPairs[i], shuffledPairs[i + 1], appUser.id, round);
           }
         }
       } else {
