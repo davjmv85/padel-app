@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=$(node -e \"let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).tool_input?.file_path||'')}catch{}})\"); case \"$F\" in *.ts|*.tsx) if ! OUT=$(npx tsc -p tsconfig.app.json --noEmit 2>&1); then echo \"TypeScript errors after editing $F:\" >&2; echo \"$OUT\" >&2; exit 2; fi ;; esac",
+            "timeout": 60,
+            "statusMessage": "Type-checking..."
+          }
+        ]
+      }
+    ]
+  }
+}
