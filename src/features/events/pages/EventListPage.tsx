@@ -65,7 +65,7 @@ export function EventListPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Trophy className="h-4 w-4" />
-                      <span>{TOURNAMENT_TYPES[event.tournamentType || 'americano']}</span>
+                      <span>{TOURNAMENT_TYPES[event.tournamentType || 'liga']}</span>
                     </div>
                     {(event.createdByName || event.createdByEmail) && (
                       <div className="flex items-center gap-2">

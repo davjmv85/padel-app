@@ -25,7 +25,7 @@ export function EventFormPage() {
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<EventFormData>({
     resolver: zodResolver(eventSchema) as never,
-    defaultValues: { status: 'draft', tournamentType: 'americano' },
+    defaultValues: { status: 'draft', tournamentType: 'liga' },
   });
 
   const currentStatus = watch('status');
@@ -44,7 +44,7 @@ export function EventFormPage() {
             price: ev.price,
             description: ev.description || '',
             status: ev.status,
-            tournamentType: ev.tournamentType || 'americano',
+            tournamentType: ev.tournamentType || 'liga',
           });
         }
         setPageLoading(false);

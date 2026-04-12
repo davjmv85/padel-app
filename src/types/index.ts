@@ -10,7 +10,7 @@ export type PlayerPosition = 'drive' | 'reves' | 'indistinto';
 export type EventStatus = 'draft' | 'published' | 'closed' | 'finished' | 'cancelled';
 
 // Tournament type
-export type TournamentType = 'americano' | 'libre';
+export type TournamentType = 'liga' | 'libre';
 
 // Payment status
 export type PaymentStatus = 'pending' | 'paid' | 'cancelled';

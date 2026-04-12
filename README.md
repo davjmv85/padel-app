@@ -140,7 +140,7 @@ Evento de pádel (torneo).
 | `price` | number | precio por jugador |
 | `description?` | string | opcional |
 | `status` | `'draft' \| 'published' \| 'closed' \| 'finished' \| 'cancelled'` | estado |
-| `tournamentType` | `'americano' \| 'libre'` | tipo de torneo (default `americano`) |
+| `tournamentType` | `'liga' \| 'libre'` | tipo de torneo (default `liga`) |
 | `currentRegistrations` | number | contador desnormalizado (se actualiza con transaction) |
 | `createdBy` | string | userId del creador |
 | `createdByEmail?` | string | email del creador (cache para mostrar en UI) |
@@ -170,7 +170,7 @@ Parejas armadas para un evento.
 | `eventId` | string | ref al evento |
 | `player1Id`, `player2Id` | string | refs a usuarios |
 | `player1Name`, `player2Name` | string | cache desnormalizado |
-| `round?` | number | solo en torneo `libre`, identifica la fecha. En `americano` queda vacío. |
+| `round?` | number | solo en torneo `libre`, identifica la fecha. En `liga` queda vacío. |
 | `createdAt` | Timestamp | |
 
 ### `matches/{matchId}`
@@ -343,7 +343,7 @@ match /rankings/{rankingId} {
 - `cancelled` — cancelado
 
 **Tipos de torneo**:
-- `americano`: parejas fijas para todo el torneo. Auto-armar genera round-robin de 3 rondas.
+- `liga`: parejas fijas para todo el torneo. Auto-armar genera round-robin de 3 rondas.
 - `libre`: parejas cambian por fecha. Admin arma parejas por fecha, partidos solo se pueden crear dentro de una fecha existente.
 
 **Listado admin** con menú kebab por evento: **Gestionar**, **Editar**, **Eliminar** (solo admin).
@@ -351,14 +351,14 @@ match /rankings/{rankingId} {
 **Vista de gestión** con pestañas:
 - **Inscriptos** — lista con nombre, posición, estado de pago, kebab (marcar pago / dar de baja). Valida que no se pueda dar de baja un jugador en pareja.
 - **Parejas** — depende del tipo:
-  - Americano: lista única, botones "Auto-armar parejas", "Crear pareja" y "Borrar todas"
+  - Liga: lista única, botones "Auto-armar parejas", "Crear pareja" y "Borrar todas"
   - Libre: secciones por fecha. Botón "+ Nueva fecha" crea una fecha vacía (local). Dentro de cada fecha: "Auto-armar" y "+ Pareja"
 - **Partidos** — agrupados por fecha:
-  - Americano: botón "Auto-armar partidos" (round-robin 3 rondas)
+  - Liga: botón "Auto-armar partidos" (round-robin 3 rondas)
   - Libre: un botón "+ Partido" por cada fecha (solo habilitado si la fecha tiene ≥2 parejas). Al crear, el modal solo muestra las parejas de esa fecha.
   - Cada partido tiene menú kebab con "Cargar resultado" / "Editar resultado" y "Borrar partido"
 - **Posiciones** — tabla en vivo:
-  - Americano: por pareja
+  - Liga: por pareja
   - Libre: por jugador individual
   - Orden: puntos → diferencia de sets → diferencia de games
 
@@ -398,7 +398,7 @@ match /rankings/{rankingId} {
 4. Solo como último recurso empareja dos del mismo lado
 
 **Validaciones**:
-- Un jugador no puede estar en dos parejas de la misma fecha (americano = todo el torneo)
+- Un jugador no puede estar en dos parejas de la misma fecha (liga = todo el torneo)
 - No se puede borrar una pareja si tiene partidos asociados
 - "Borrar todas" saltea las que tienen partidos
 
@@ -412,7 +412,7 @@ match /rankings/{rankingId} {
 5. El ganador se determina automáticamente por sets ganados
 
 **Auto-armado**:
-- **Americano**: round-robin rotation de 3 rondas. Cada pareja juega exactamente 3 partidos. Los partidos se guardan con `round` (1, 2, 3...) para agruparlos. Se saltean duplicados si ya existen partidos.
+- **Liga**: round-robin rotation de 3 rondas. Cada pareja juega exactamente 3 partidos. Los partidos se guardan con `round` (1, 2, 3...) para agruparlos. Se saltean duplicados si ya existen partidos.
 - **Libre**: genera todos los cruces dentro de cada fecha. Las parejas de fecha 1 juegan entre sí, las de fecha 2 entre sí, etc.
 
 **Borrar todos los partidos** con confirmación (recalcula ranking).
@@ -428,7 +428,7 @@ Tabla calculada en vivo desde el cliente en función de los matches del evento.
 2. Diferencia de sets (SG - SP) — desc
 3. Diferencia de games (GG - GP) — desc
 
-**Por pareja (americano)** o **por jugador individual (libre)**. En libre, un jugador suma los puntos y sets de todas las parejas que integró en las diferentes fechas.
+**Por pareja (liga)** o **por jugador individual (libre)**. En libre, un jugador suma los puntos y sets de todas las parejas que integró en las diferentes fechas.
 
 ### 8.8 Ranking general
 

@@ -23,7 +23,7 @@ export async function createPair(
   round?: number
 ): Promise<string> {
   // Validate no duplicates within the same scope
-  // - americano (no round): a player can only be in one pair in the whole event
+  // - liga (no round): a player can only be in one pair in the whole event
   // - libre (with round): a player can only be in one pair per fecha (same round)
   const existing = await getEventPairs(eventId);
   const relevant = round == null

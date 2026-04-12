@@ -86,7 +86,7 @@ firebase.json             → multi-site hosting config
 ## Modelos Firestore (resumen)
 
 - `users/{uid}` — perfil del usuario. Campos: email, displayName, firstName, lastName, **nickname?**, position, role (admin/collaborator/player), adminCreated?
-- `events/{id}` — torneo. Campos: name, location, date, time, maxCapacity, price, status (draft/published/closed/finished/cancelled), **tournamentType (americano/libre)**, currentRegistrations, createdBy, createdByEmail, createdByName
+- `events/{id}` — torneo. Campos: name, location, date, time, maxCapacity, price, status (draft/published/closed/finished/cancelled), **tournamentType (liga/libre)**, currentRegistrations, createdBy, createdByEmail, createdByName
 - `registrations/{id}` — colección global. Campos: eventId, userId, userName (cache), userPosition (cache), paymentStatus (pending/paid/cancelled), status (active/cancelled)
 - `event_pairs/{id}` — parejas. Campos: eventId, player1Id/Name, player2Id/Name, **round?** (solo libre)
 - `matches/{id}` — partidos. Campos: eventId, pairAId, pairBId, scoreA, scoreB, winnerId, **round?**
@@ -103,7 +103,7 @@ Un staff (admin/collaborator) puede ALSO jugar como player.
 
 ## Tipos de torneo
 
-- **`americano`**: parejas fijas para todo el torneo. Auto-armar genera round-robin de 3 rondas. Posiciones por pareja.
+- **`liga`**: parejas fijas para todo el torneo. Auto-armar genera round-robin de 3 rondas. Posiciones por pareja.
 - **`libre`**: parejas cambian por fecha. Cada `event_pair` tiene `round`. Auto-armar parejas evita repetir combinaciones de fechas anteriores. Auto-armar partidos genera todos los cruces dentro de cada fecha. Posiciones por jugador individual.
 
 ## Convenciones del proyecto
@@ -146,7 +146,7 @@ Un staff (admin/collaborator) puede ALSO jugar como player.
 3. **Cuando el deploy termina**, decirle al usuario que puede testear (no asumir que está OK).
 4. **Cualquier feature nueva** que afecte modelo de datos: actualizar `types/index.ts`, `utils/validation.ts`, los services correspondientes y el `README.md`.
 5. **Eventos en estado `finished`**: bloquear edición de inscriptos, parejas, partidos. Solo permitir cambio de status.
-6. **Posiciones**: en americano son por pareja, en libre son por jugador.
+6. **Posiciones**: en liga son por pareja, en libre son por jugador.
 7. **Auto-armar parejas en libre**: NUNCA debe repetir combinaciones de fechas anteriores (la repetición se hace solo manualmente).
 8. **Tab Inscriptos** (jugador): solo se muestra si el jugador está inscripto Y pagó.
 9. **Cuando se cargan/editan/borran matches**: llamar a `recalculateRankings()` después.

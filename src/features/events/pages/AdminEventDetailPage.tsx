@@ -171,7 +171,7 @@ export function AdminEventDetailPage() {
   const handleAutoPair = async (round?: number) => {
     if (!eventId) return;
     // For libre, we auto-pair players NOT yet in a pair of that specific round
-    // For americano, we auto-pair players NOT yet in any event pair
+    // For liga, we auto-pair players NOT yet in any event pair
     const pool = round != null
       ? registrations.filter(r => {
           const inRound = pairs.some(p => p.round === round && (p.player1Id === r.userId || p.player2Id === r.userId));
@@ -318,7 +318,7 @@ export function AdminEventDetailPage() {
           }
         }
       } else {
-        // Americano: round-robin 3 rounds
+        // Liga: round-robin 3 rounds
         if (pairs.length < 4) {
           toast.error('Se necesitan al menos 4 parejas');
           return;
@@ -532,7 +532,7 @@ export function AdminEventDetailPage() {
           }
         }
       } else {
-        // Americano: build pairs once, then round-robin across fechas
+        // Liga: build pairs once, then round-robin across fechas
         const allPairs = buildPairs([...players], new Set());
         const numPairs = allPairs.length;
         if (numPairs * 2 < players.length) {
@@ -542,7 +542,7 @@ export function AdminEventDetailPage() {
           throw new Error(`Con ${numPairs} parejas, máximo ${numPairs - 1} fechas (cada pareja juega contra cada otra como mucho una vez).`);
         }
 
-        // Save pairs (no round in americano)
+        // Save pairs (no round in liga)
         const pairIds: string[] = [];
         for (const [p1, p2] of allPairs) {
           const id = await createPair(eventId, p1.userId, p1.userName, p2.userId, p2.userName);
@@ -663,7 +663,7 @@ export function AdminEventDetailPage() {
 
   const isLibre = event.tournamentType === 'libre';
 
-  // Pair standings (americano)
+  // Pair standings (liga)
   const pairStandings = (() => {
     const stats: Record<string, { id: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
     pairs.forEach(p => {
@@ -740,7 +740,7 @@ export function AdminEventDetailPage() {
   };
 
   // Available players depends on mode and current fecha context
-  // - Americano: players not in any pair
+  // - Liga: players not in any pair
   // - Libre (with pairFormRound set): players not in any pair of that round
   // - Libre (no round context): players in general (shown as list for overview)
   const relevantPairs = isLibre && pairFormRound != null
@@ -785,7 +785,7 @@ export function AdminEventDetailPage() {
             {event.date?.toDate ? event.date.toDate().toLocaleDateString('es-AR') : ''} - {event.time} | {event.location}
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500 dark:text-gray-400">
-            <span><span className="text-gray-400 dark:text-gray-500">Tipo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{TOURNAMENT_TYPES[event.tournamentType || 'americano']}</span></span>
+            <span><span className="text-gray-400 dark:text-gray-500">Tipo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{TOURNAMENT_TYPES[event.tournamentType || 'liga']}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Cupo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.currentRegistrations}/{event.maxCapacity}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Precio:</span> <span className="font-medium text-gray-700 dark:text-gray-300">${formatPrice(event.price)}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Organizador:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.createdByName || event.createdByEmail || event.createdBy}</span></span>
@@ -863,7 +863,7 @@ export function AdminEventDetailPage() {
       )}
 
       {/* Pairs Tab */}
-      {/* Tournament builder (shared between americano and libre) */}
+      {/* Tournament builder (shared between liga and libre) */}
       {activeTab === 'pairs' && (
         <Card className="mb-4">
           <CardContent className="py-4">
@@ -1034,7 +1034,7 @@ export function AdminEventDetailPage() {
         );
       })()}
 
-      {/* Matches Tab - Americano */}
+      {/* Matches Tab - Liga */}
       {activeTab === 'matches' && !isLibre && (
         <div>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">

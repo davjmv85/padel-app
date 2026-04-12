@@ -116,7 +116,7 @@ export function EventDetailPage() {
 
   const isLibre = event.tournamentType === 'libre';
 
-  // Pair standings (americano)
+  // Pair standings (liga)
   const pairStandings = (() => {
     const stats: Record<string, { id: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
     pairs.forEach(p => {
@@ -227,7 +227,7 @@ export function EventDetailPage() {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 dark:text-gray-400 mb-3">
             <span className="flex items-center gap-1.5">
               <Trophy className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-              {TOURNAMENT_TYPES[event.tournamentType || 'americano']}
+              {TOURNAMENT_TYPES[event.tournamentType || 'liga']}
             </span>
             <span className="text-gray-300 dark:text-gray-600">|</span>
             <span className="flex items-center gap-1.5">

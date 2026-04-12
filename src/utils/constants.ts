@@ -27,8 +27,8 @@ export const PLAYER_POSITIONS: Record<PlayerPosition, string> = {
 };
 
 export const TOURNAMENT_TYPES: Record<TournamentType, string> = {
-  americano: 'Americano (parejas fijas)',
-  libre: 'Libre (parejas por fecha)',
+  liga: 'Liga',
+  libre: 'Libre',
 };
 
 export const EVENT_STATUS_COLORS: Record<EventStatus, string> = {
