@@ -65,6 +65,21 @@ export async function deleteEvent(eventId: string): Promise<void> {
   await deleteDoc(doc(db, 'events', eventId));
 }
 
+export async function deleteEventCascade(eventId: string): Promise<void> {
+  const { deleteEventMatches } = await import('@/features/matches/services/matchService');
+  const { deleteEventPairs } = await import('@/features/pairs/services/pairService');
+  const { deleteEventGroups } = await import('./groupService');
+  const { deleteEventRegistrations, deleteEventWaitlist } = await import('@/features/registrations/services/registrationService');
+  const { recalculateRankings } = await import('@/features/ranking/services/rankingService');
+  await deleteEventMatches(eventId);
+  await deleteEventGroups(eventId);
+  await deleteEventPairs(eventId);
+  await deleteEventRegistrations(eventId);
+  await deleteEventWaitlist(eventId);
+  await deleteDoc(doc(db, 'events', eventId));
+  await recalculateRankings();
+}
+
 export async function getEvent(eventId: string): Promise<PadelEvent | null> {
   const snap = await getDoc(doc(db, 'events', eventId));
   if (!snap.exists()) return null;

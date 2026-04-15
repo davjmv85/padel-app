@@ -29,7 +29,8 @@ export function EventFormPage() {
   });
 
   const currentStatus = watch('status');
-  const isFinished = currentStatus === 'finished';
+  const isFinished = currentStatus === 'finished' || currentStatus === 'closed';
+  const isClosed = currentStatus === 'closed';
 
   useEffect(() => {
     if (isEditing && eventId) {
@@ -85,7 +86,11 @@ export function EventFormPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Completá los datos del evento</p>
         </CardHeader>
         <CardContent>
-          {isFinished && (
+          {isClosed ? (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-800 dark:text-red-300">
+              El evento está <strong>cerrado</strong> (estado final). No puede modificarse ni eliminarse desde la app. Para reabrirlo hay que editar la base de datos directamente.
+            </div>
+          ) : isFinished && (
             <div className="mb-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-300">
               El evento está <strong>finalizado</strong>. Cambiá el estado para poder editar el resto de los campos.
             </div>
@@ -93,18 +98,18 @@ export function EventFormPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input label="Nombre" {...register('name')} error={errors.name?.message} disabled={isFinished} />
             <Input label="Lugar" {...register('location')} error={errors.location?.message} disabled={isFinished} />
-            <div className="grid grid-cols-2 gap-4">
+            <Select label="Tipo de torneo" options={typeOptions} {...register('tournamentType')} error={errors.tournamentType?.message} disabled={isFinished || isEditing} />
+            {isEditing && <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">El tipo de torneo no se puede cambiar una vez creado el evento.</p>}
+            <div className="grid grid-cols-2 gap-6">
               <Input label="Fecha" type="date" {...register('date')} error={errors.date?.message} disabled={isFinished} />
               <Input label="Hora" type="time" {...register('time')} error={errors.time?.message} disabled={isFinished} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Input label="Cupo máximo" type="number" {...register('maxCapacity')} error={errors.maxCapacity?.message} disabled={isFinished} />
+            <div className="grid grid-cols-2 gap-6">
+              <Input label="Max. jugadores" type="number" {...register('maxCapacity')} error={errors.maxCapacity?.message} disabled={isFinished} />
               <Input label="Precio ($)" type="number" step="0.01" {...register('price')} error={errors.price?.message} disabled={isFinished} />
             </div>
             <Textarea label="Descripción (opcional)" rows={3} {...register('description')} error={errors.description?.message} disabled={isFinished} />
-            <Select label="Tipo de torneo" options={typeOptions} {...register('tournamentType')} error={errors.tournamentType?.message} disabled={isFinished || isEditing} />
-            {isEditing && <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">El tipo de torneo no se puede cambiar una vez creado el evento.</p>}
-            <Select label="Estado" options={statusOptions} {...register('status')} error={errors.status?.message} />
+            <Select label="Estado" options={statusOptions} {...register('status')} error={errors.status?.message} disabled={isClosed} />
             <div className="flex gap-3 pt-2">
               <Button type="submit" loading={loading}>
                 {isEditing ? 'Guardar cambios' : 'Crear evento'}

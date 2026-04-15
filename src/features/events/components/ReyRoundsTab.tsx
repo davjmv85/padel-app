@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { inverseScore, determineWinner } from '@/utils/format';
+import { inverseScore, determineWinner, computePairRecords, pairRecordLabel } from '@/utils/format';
 import { updateMatch, deleteMatch, clearMatchResult } from '@/features/matches/services/matchService';
 import { generateReyFirstRound, generateReyNextRound } from '../services/reyService';
 import { recalculateRankings } from '@/features/ranking/services/rankingService';
@@ -21,9 +21,10 @@ interface Props {
   appUserId: string;
   onReload: () => Promise<void>;
   isFinished: boolean;
+  readOnly?: boolean;
 }
 
-export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFinished }: Props) {
+export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFinished, readOnly = false }: Props) {
   const config = event.reyConfig;
 
   const [busy, setBusy] = useState(false);
@@ -48,10 +49,13 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
     );
   }
 
+  const pairRecords = computePairRecords(matches);
+
   const getPairName = (pairId: string | null) => {
     if (!pairId) return '—';
     const p = pairs.find(pr => pr.id === pairId);
-    return p ? `${p.player1Name} / ${p.player2Name}` : 'Desconocida';
+    if (!p) return 'Desconocida';
+    return `${p.player1Name} / ${p.player2Name} (${pairRecordLabel(pairRecords, p.id)})`;
   };
 
   const rounds = Array.from(new Set(matches.map(m => m.round!).filter(r => r != null))).sort((a, b) => a - b);
@@ -199,14 +203,16 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
             {m.scoreB && <span className="text-sm font-bold">{m.scoreB}</span>}
           </div>
         </div>
-        <ReyMatchKebab
-          hasResult={hasResult}
-          canDelete={isCurrent}
-          onLoadResult={() => openLoadResult(m)}
-          onClearResult={() => setClearResultMatchId(m.id)}
-          onDelete={() => setDeleteMatchId(m.id)}
-          disabled={isFinished}
-        />
+        {!readOnly && (
+          <ReyMatchKebab
+            hasResult={hasResult}
+            canDelete={isCurrent}
+            onLoadResult={() => openLoadResult(m)}
+            onClearResult={() => setClearResultMatchId(m.id)}
+            onDelete={() => setDeleteMatchId(m.id)}
+            disabled={isFinished}
+          />
+        )}
       </div>
     );
   };
@@ -219,7 +225,7 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
   return (
     <div className="space-y-6">
       {/* Action bar */}
-      <div className="flex flex-wrap gap-3">
+      {!readOnly && <div className="flex flex-wrap gap-3">
         {rounds.length === 0 && (
           <Button onClick={handleGenerateFirst} loading={busy} disabled={isFinished || pairs.length < 2}>
             Generar ronda 1
@@ -230,7 +236,7 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
             Generar ronda {currentRound + 1}
           </Button>
         )}
-      </div>
+      </div>}
 
       {rounds.length === 0 ? (
         <Card><CardContent className="py-4">
@@ -251,10 +257,16 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
                   {sortedCourts.map(c => {
                     const m = rMatches.find(x => x.courtId === c.id);
                     if (!m) return null;
+                    const isWinners = c.id === config.winnersCourtId;
+                    const isLosers = c.id === config.losersCourtId;
                     return (
                       <Card key={c.id}>
                         <CardContent className="py-4">
-                          <h4 className="text-sm font-semibold mb-3">{c.name}</h4>
+                          <h4 className="text-sm font-semibold mb-3">
+                            {c.name}
+                            {isWinners && <span className="ml-2 text-green-600 dark:text-green-400">(+)</span>}
+                            {isLosers && <span className="ml-2 text-red-600 dark:text-red-400">(−)</span>}
+                          </h4>
                           {renderMatch(m, isCurrent)}
                         </CardContent>
                       </Card>
@@ -267,7 +279,7 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
                         <div className="flex flex-wrap gap-2">
                           {currentResting.map(p => (
                             <span key={p.id} className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700">
-                              {p.player1Name} / {p.player2Name}
+                              {p.player1Name} / {p.player2Name} ({pairRecordLabel(pairRecords, p.id)})
                             </span>
                           ))}
                         </div>

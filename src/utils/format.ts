@@ -49,6 +49,26 @@ export function determineWinner(scoreA: string): 'A' | 'B' | null {
  * Example: "6-4 6-3" → { setsWon: 2, setsLost: 0, gamesWon: 12, gamesLost: 7 }
  * Returns null if invalid.
  */
+export function computePairRecords(matches: Array<{ pairAId: string; pairBId: string; winnerId: string }>): Map<string, { won: number; lost: number }> {
+  const records = new Map<string, { won: number; lost: number }>();
+  const bump = (id: string, key: 'won' | 'lost') => {
+    const r = records.get(id) || { won: 0, lost: 0 };
+    r[key]++;
+    records.set(id, r);
+  };
+  for (const m of matches) {
+    if (!m.winnerId) continue;
+    if (m.winnerId === m.pairAId) { bump(m.pairAId, 'won'); bump(m.pairBId, 'lost'); }
+    else if (m.winnerId === m.pairBId) { bump(m.pairBId, 'won'); bump(m.pairAId, 'lost'); }
+  }
+  return records;
+}
+
+export function pairRecordLabel(records: Map<string, { won: number; lost: number }>, pairId: string): string {
+  const r = records.get(pairId) || { won: 0, lost: 0 };
+  return `${r.won}-${r.lost}`;
+}
+
 export function countSets(scoreA: string): { won: number; lost: number; gamesWon: number; gamesLost: number } | null {
   if (!scoreA?.trim()) return null;
   let won = 0;

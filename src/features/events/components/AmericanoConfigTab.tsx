@@ -18,9 +18,10 @@ interface Props {
   onAdvancePhase: (phase: AmericanoPhase) => Promise<void>;
   onReset: () => Promise<void>;
   isFinished: boolean;
+  readOnly?: boolean;
 }
 
-export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, onAdvancePhase, onReset, isFinished }: Props) {
+export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, onAdvancePhase, onReset, isFinished, readOnly = false }: Props) {
   const config = event.americanoConfig;
   const phase = event.americanoPhase || 'setup';
 
@@ -130,7 +131,7 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
                 max="20"
                 value={minMatches}
                 onChange={(e) => setMinMatches(e.target.value)}
-                disabled={phase !== 'setup' || isFinished}
+                disabled={phase !== 'setup' || isFinished || readOnly}
                 className={inputClass}
               />
             </div>
@@ -144,7 +145,7 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
                 max="16"
                 value={groupCount}
                 onChange={(e) => setGroupCount(e.target.value)}
-                disabled={phase !== 'setup' || isFinished}
+                disabled={phase !== 'setup' || isFinished || readOnly}
                 className={inputClass}
               />
             </div>
@@ -158,7 +159,7 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
                 max="10"
                 value={directQualifiers}
                 onChange={(e) => setDirectQualifiers(e.target.value)}
-                disabled={phase !== 'setup' || isFinished}
+                disabled={phase !== 'setup' || isFinished || readOnly}
                 className={inputClass}
               />
             </div>
@@ -184,7 +185,7 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
             </div>
           )}
 
-          {phase === 'setup' && (
+          {phase === 'setup' && !readOnly && (
             <div className="flex gap-3 mt-4">
               <Button onClick={handleSave} loading={saving} disabled={isFinished || !validation || validation.errors.length > 0}>
                 Guardar configuración
@@ -194,7 +195,7 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
         </CardContent>
       </Card>
 
-      {canAdvanceToGroups && (
+      {canAdvanceToGroups && !readOnly && (
         <Card>
           <CardContent className="py-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
@@ -207,7 +208,7 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
         </Card>
       )}
 
-      {!isFinished && (phase !== 'setup' || pairs.length > 0) && (
+      {!isFinished && !readOnly && (phase !== 'setup' || pairs.length > 0) && (
         <Card className="border border-red-200 dark:border-red-900/50">
           <CardContent className="py-4">
             <h3 className="font-semibold text-red-700 dark:text-red-400 flex items-center gap-2 mb-2">

@@ -5,27 +5,31 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Select } from '@/components/ui/Select';
 import { distributeInGroups } from '@/utils/americano';
 import { PLAYER_POSITIONS } from '@/utils/constants';
+import { computePairRecords, pairRecordLabel } from '@/utils/format';
 import { createGroup, deleteEventGroups } from '../services/groupService';
-import type { PadelEvent, EventPair, EventGroup, Registration } from '@/types';
+import type { PadelEvent, EventPair, EventGroup, Registration, Match } from '@/types';
 import toast from 'react-hot-toast';
 
 interface Props {
   event: PadelEvent;
   pairs: EventPair[];
   groups: EventGroup[];
+  matches: Match[];
   registrations: Registration[];
   onReload: () => Promise<void>;
   isFinished: boolean;
+  readOnly?: boolean;
 }
 
-export function AmericanoGroupsTab({ event, pairs, groups, registrations, onReload, isFinished }: Props) {
+export function AmericanoGroupsTab({ event, pairs, groups, matches, registrations, onReload, isFinished, readOnly = false }: Props) {
+  const pairRecords = computePairRecords(matches);
   const [busy, setBusy] = useState(false);
   const [manualPair, setManualPair] = useState('');
   const [manualGroup, setManualGroup] = useState('');
 
   const config = event.americanoConfig;
   const phase = event.americanoPhase || 'setup';
-  const canEdit = phase === 'setup' && !isFinished;
+  const canEdit = phase === 'setup' && !isFinished && !readOnly;
 
   const getPairName = (pairId: string) => {
     const p = pairs.find(pr => pr.id === pairId);
@@ -185,6 +189,7 @@ export function AmericanoGroupsTab({ event, pairs, groups, registrations, onRelo
                           <span className="text-sm font-medium text-gray-400 dark:text-gray-500">{idx + 1}:</span>{' '}
                           <span className="font-medium">{getPairName(pairId)}</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">({getPairPositions(pairId)})</span>
+                          <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pairId)})</span>
                         </div>
                       </div>
                     ))}

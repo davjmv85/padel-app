@@ -267,6 +267,12 @@ Lista de espera para eventos llenos.
 | Ver ranking general | ✅ | ✅ | ✅ |
 | Inscribirse a eventos | ✅ | ✅ | ✅ |
 | Ver inscriptos/parejas/partidos/posiciones de un evento | ✅ | ✅ | Solo si pagó |
+| Eliminar evento cerrado (`closed`) | ❌ | ❌ | ❌ |
+| Editar evento cerrado (`closed`) | ❌ | ❌ | ❌ |
+
+### Página de inicio
+- **Admin / Colaborador**: `/admin/events` (Gestión de Eventos). No hay Dashboard.
+- **Jugador**: `/` (Eventos disponibles).
 
 ### Un staff también puede jugar
 Admin y collaborator tienen en el sidebar las mismas rutas de player (Eventos, Mis Inscripciones, Perfil). Pueden inscribirse a los eventos, armar sus propias parejas, jugar, etc. — además de su rol de gestión.
@@ -357,13 +363,13 @@ match /rankings/{rankingId} {
 **CRUD completo**:
 - Crear evento con nombre, lugar, fecha, hora, cupo, precio, descripción, estado, tipo de torneo
 - Editar cualquier campo (excepto `tournamentType` que es inmutable después de crearlo)
-- Eliminar (solo admin, con confirmación)
+- Eliminar (solo admin, con confirmación) — **eliminación en cascada**: borra registrations, pairs, matches, event_groups, waitlist, el evento, y recalcula ranking global.
 
 **Estados del evento**:
 - `draft` — no visible para jugadores
 - `published` — visible, abierto a inscripciones
-- `closed` — cerrado, ya no aceptan inscripciones
-- `finished` — finalizado. Bloquea edición de inscriptos, parejas, partidos y resultados. Solo se puede cambiar el `status` para desbloquear.
+- `closed` — **estado FINAL**. No se puede editar ni eliminar desde la app. Tampoco se puede cambiar el estado desde el form. Para reabrirlo hay que tocar Firestore directamente. En el listado admin solo se muestra la acción "Ver".
+- `finished` — finalizado. Bloquea edición de inscriptos, parejas, partidos y resultados. Se puede cambiar el `status` desde el form para desbloquear.
 - `cancelled` — cancelado
 
 **Tipos de torneo**:
@@ -582,7 +588,24 @@ Modalidad donde las parejas rotan entre canchas según ganen o pierdan cada rond
 
 **Ranking global**: se alimenta como siempre — `recalculateRankings()` después de cada cambio en matches.
 
-### 8.15 UX polish
+### 8.15 Vista del jugador (read-only)
+
+La pantalla de detalle del evento para el jugador **refleja la del admin en accordions**, pero completamente read-only: sin botones de crear/editar/eliminar, sin kebabs de acciones, inputs disabled. Se reutilizan los mismos subcomponentes (`AmericanoConfigTab`, `AmericanoGroupsTab`, `AmericanoMatchesTab`, `AmericanoStandingsTab`, `ReyConfigTab`, `ReyRoundsTab`) pasándoles una prop `readOnly`.
+
+**Gating**: los accordions de contenido solo se muestran si el jugador está **inscripto y pagó** (antes de pagar, ve solo info básica + mensaje amarillo).
+
+**Orden de accordions (player)**:
+- **Liga/Libre**: Inscriptos → Parejas → Partidos → Posiciones.
+- **Americano**: Inscriptos → Parejas → Grupos → Posiciones → Partidos.
+- **Rey de Cancha**: Inscriptos → Parejas → Rondas → Posiciones.
+
+El accordion de **Configuración** no se muestra para el jugador (es configuración del admin).
+
+**Detalles visuales**:
+- El row del jugador actual (o su pareja) queda resaltado en azul en las tablas.
+- Nombres de pareja incluyen su record `(W-L)` a la derecha, igual que en la vista admin.
+
+### 8.16 UX polish
 
 - **Breadcrumbs** en detalles de evento (admin y player) para volver al listado
 - **Menús kebab** para acciones secundarias (no saturar la UI con botones)
@@ -592,6 +615,12 @@ Modalidad donde las parejas rotan entre canchas según ganen o pierdan cada rond
 - **Confirmaciones** para acciones destructivas (eliminar evento, borrar todo)
 - **Reset con nombre**: las acciones de reset de americano y rey piden escribir el nombre exacto del evento (no un simple "sí/no")
 - **Toast notifications** para feedback de acciones
+- **Header mobile sticky** (`sticky top-0 z-30`) en toda la app
+- **Accordion spacing**: `mt-4` por header para que el contenido abierto no quede pegado al siguiente accordion
+- **Record (W-L) junto a la pareja**: en todos los listados (parejas, grupos, rondas, matches) aparece `(victorias-derrotas)` para ese evento, calculado con `computePairRecords` en `utils/format.ts`
+- **Fix overflow iOS**: inputs `date`/`time` con `-webkit-appearance: none` + `min-width: 0` para que respeten el ancho del grid en Safari mobile
+- **Listado admin**: muestra el tipo de torneo debajo de fecha/lugar
+- **Sidebar "Gestión Eventos"**: ícono de tuerca (`Settings` de lucide) para diferenciar de "Eventos" del player
 - **Estados vacíos** con ícono + mensaje explicativo
 - **Loading states** con spinner
 - **Responsive 100%** (PC, tablet, mobile)
@@ -717,6 +746,10 @@ Creado con `@BotFather`. Token y chat ID en `.env`. El bot debe haber recibido a
 - **Rondas de Rey se derivan de matches**: no hay doc "round" ni "state". Los partidos con `round = N` son la ronda N; el estado (ganadores, perdedores, descansos) se recomputa leyendo los matches. Simplifica mucho: un solo source of truth.
 - **Orden de accordions en americano**: Inscriptos → Configuración → Parejas → Grupos → Posiciones → Partidos (Posiciones antes que Partidos porque es más consultado durante el torneo). Rey: Inscriptos → Configuración → Parejas → Rondas → Posiciones.
 - **Posiciones en americano** muestra solo tablas por grupo + "no clasificados con bye". El bracket eliminatorio y repechaje viven en "Partidos", no en "Posiciones" (evita duplicación).
+- **Vista del player = vista del admin con `readOnly`**: en vez de mantener dos implementaciones, se reutilizan los mismos subcomponentes de tabs y se les pasa una prop `readOnly` que oculta barras de acciones, kebabs y zonas de peligro. Reduce duplicación.
+- **Eliminación de evento en cascada**: `deleteEventCascade` borra registrations, pairs, matches, event_groups, waitlist + el evento + recalcula ranking. Evita orphans en las inscripciones del jugador.
+- **`closed` como estado final**: no hay CTA de reopen en UI. Intencional — fuerza pasar por DB para reabrir un torneo cerrado (evita re-aperturas accidentales que mezclen ranking).
+- **Dashboard eliminado**: el landing staff es directamente `/admin/events`. `/admin` queda como redirect para links viejos.
 
 ---
 

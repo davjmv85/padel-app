@@ -29,7 +29,8 @@ export function MyRegistrationsPage() {
           return { ...reg, event: event || undefined };
         })
       );
-      setRegistrations(withEvents);
+      // Hide registrations whose event was deleted
+      setRegistrations(withEvents.filter(r => r.event));
       setLoading(false);
     });
   }, [appUser]);

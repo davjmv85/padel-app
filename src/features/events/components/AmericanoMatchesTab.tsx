@@ -22,9 +22,10 @@ interface Props {
   onReload: () => Promise<void>;
   appUserId: string;
   isFinished: boolean;
+  readOnly?: boolean;
 }
 
-export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, appUserId, isFinished }: Props) {
+export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, appUserId, isFinished, readOnly = false }: Props) {
   const phase = event.americanoPhase || 'setup';
   const config = event.americanoConfig;
 
@@ -312,14 +313,16 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
             {m.scoreB && <span className="text-sm font-bold">{m.scoreB}</span>}
           </div>
         </div>
-        <MatchKebab
-          hasResult={hasResult}
-          locked={locked}
-          onLoadResult={() => openLoadResult(m)}
-          onClearResult={() => setClearResultMatchId(m.id)}
-          onDelete={() => setDeleteMatchId(m.id)}
-          disabled={isFinished}
-        />
+        {!readOnly && (
+          <MatchKebab
+            hasResult={hasResult}
+            locked={locked}
+            onLoadResult={() => openLoadResult(m)}
+            onClearResult={() => setClearResultMatchId(m.id)}
+            onDelete={() => setDeleteMatchId(m.id)}
+            disabled={isFinished}
+          />
+        )}
       </div>
     );
   };
@@ -348,7 +351,7 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
   return (
     <div className="space-y-6">
       {/* Actions bar */}
-      <div className="flex flex-wrap gap-3">
+      {!readOnly && <div className="flex flex-wrap gap-3">
         {(phase === 'setup' || phase === 'groups') && groupMatches.length === 0 && groups.length > 0 && (
           <Button onClick={handleGenerateGroupFixture} loading={busy} disabled={isFinished}>
             Generar fixture de grupos
@@ -369,7 +372,7 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
             Generar siguiente ronda
           </Button>
         )}
-      </div>
+      </div>}
 
       {/* Group stage */}
       {groupMatches.length > 0 && (
@@ -453,14 +456,16 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
                                     {m.scoreB && <span className="text-sm font-bold">{m.scoreB}</span>}
                                   </div>
                                 </div>
-                                <MatchKebab
-                                  hasResult={hasResult}
-                                  locked={locked}
-                                  onLoadResult={() => openLoadResult(m)}
-                                  onClearResult={() => setClearResultMatchId(m.id)}
-                                  onDelete={() => setDeleteMatchId(m.id)}
-                                  disabled={isFinished}
-                                />
+                                {!readOnly && (
+                                  <MatchKebab
+                                    hasResult={hasResult}
+                                    locked={locked}
+                                    onLoadResult={() => openLoadResult(m)}
+                                    onClearResult={() => setClearResultMatchId(m.id)}
+                                    onDelete={() => setDeleteMatchId(m.id)}
+                                    disabled={isFinished}
+                                  />
+                                )}
                               </div>
                             );
                           })}

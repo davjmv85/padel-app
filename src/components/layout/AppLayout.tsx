@@ -8,8 +8,8 @@ import {
   LogOut,
   Menu,
   X,
-  LayoutDashboard,
   ClipboardList,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -34,8 +34,7 @@ export function AppLayout() {
   ];
 
   const staffNav: NavItem[] = [
-    { label: 'Dashboard', path: '/admin', icon: <LayoutDashboard className="h-5 w-5" /> },
-    { label: 'Gestión Eventos', path: '/admin/events', icon: <Calendar className="h-5 w-5" /> },
+    { label: 'Gestión Eventos', path: '/admin/events', icon: <Settings className="h-5 w-5" /> },
     { label: 'Eventos', path: '/', icon: <Calendar className="h-5 w-5" /> },
     { label: 'Mis Inscripciones', path: '/my-registrations', icon: <ClipboardList className="h-5 w-5" /> },
     { label: 'Ranking', path: '/ranking', icon: <Trophy className="h-5 w-5" /> },
@@ -53,12 +52,12 @@ export function AppLayout() {
     navigate('/login');
   };
 
-  const homePath = isStaff ? '/admin' : '/';
+  const homePath = isStaff ? '/admin/events' : '/';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#101828]">
       {/* Mobile header */}
-      <div className="lg:hidden flex items-center justify-between bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+      <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100 cursor-pointer">
           <Menu className="h-6 w-6" />
         </button>

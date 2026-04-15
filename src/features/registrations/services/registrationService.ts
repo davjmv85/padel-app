@@ -3,6 +3,7 @@ import {
   doc,
   addDoc,
   updateDoc,
+  deleteDoc,
   getDocs,
   query,
   where,
@@ -128,6 +129,23 @@ export async function updatePaymentStatus(registrationId: string, status: 'pendi
     paidAt: status === 'paid' ? serverTimestamp() : null,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function deleteEventRegistrations(eventId: string): Promise<void> {
+  const q = query(registrationsRef, where('eventId', '==', eventId));
+  const snap = await getDocs(q);
+  for (const d of snap.docs) {
+    await deleteDoc(doc(db, 'registrations', d.id));
+  }
+}
+
+export async function deleteEventWaitlist(eventId: string): Promise<void> {
+  const waitlistRef = collection(db, 'waitlist');
+  const q = query(waitlistRef, where('eventId', '==', eventId));
+  const snap = await getDocs(q);
+  for (const d of snap.docs) {
+    await deleteDoc(doc(db, 'waitlist', d.id));
+  }
 }
 
 export async function addToWaitlist(eventId: string, userId: string, userEmail: string): Promise<void> {

@@ -18,7 +18,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS, PAYMENT_STATUSES, PAYMENT_STATUS_COLORS, PLAYER_POSITIONS, TOURNAMENT_TYPES, AMERICANO_PHASES } from '@/utils/constants';
-import { formatPrice, inverseScore, determineWinner, countSets } from '@/utils/format';
+import { formatPrice, inverseScore, determineWinner, countSets, computePairRecords, pairRecordLabel } from '@/utils/format';
 import { AmericanoConfigTab } from '../components/AmericanoConfigTab';
 import { AmericanoGroupsTab } from '../components/AmericanoGroupsTab';
 import { AmericanoMatchesTab } from '../components/AmericanoMatchesTab';
@@ -117,6 +117,7 @@ export function AdminEventDetailPage() {
   const americanoPairsLocked = isAmericano && americanoPhase !== 'setup';
   const reyHasMatches = isRey && matches.length > 0;
   const reyPairsLocked = isRey && reyHasMatches;
+  const pairRecords = computePairRecords(matches);
 
   const tabs: { key: Tab; label: string }[] = isAmericano
     ? [
@@ -844,7 +845,7 @@ export function AdminEventDetailPage() {
     ...pairsForMatchModal.map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` })),
   ];
 
-  const isFinished = event.status === 'finished';
+  const isFinished = event.status === 'finished' || event.status === 'closed';
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -984,6 +985,7 @@ export function AdminEventDetailPage() {
                               <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
                               <span className="font-medium">{pair.player2Name}</span>
                               {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                          <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pair.id)})</span>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)} disabled={isFinished || reyPairsLocked}>
                               Eliminar
@@ -1070,6 +1072,7 @@ export function AdminEventDetailPage() {
                           <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
                           <span className="font-medium">{pair.player2Name}</span>
                           {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                          <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pair.id)})</span>
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)} disabled={isFinished || americanoPairsLocked}>
                           Eliminar
@@ -1091,6 +1094,7 @@ export function AdminEventDetailPage() {
           event={event}
           pairs={pairs}
           groups={groups}
+          matches={matches}
           registrations={registrations}
           onReload={loadData}
           isFinished={isFinished}
@@ -1208,6 +1212,7 @@ export function AdminEventDetailPage() {
                           <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
                           <span className="font-medium">{pair.player2Name}</span>
                           {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                          <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pair.id)})</span>
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)} disabled={isFinished}>
                           Eliminar
@@ -1284,6 +1289,7 @@ export function AdminEventDetailPage() {
                                       <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
                                       <span className="font-medium">{pair.player2Name}</span>
                                       {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                          <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pair.id)})</span>
                                     </div>
                                     <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)} disabled={isFinished}>
                                       Eliminar
@@ -1630,7 +1636,7 @@ function AccordionHeader({ label, isOpen, onClick }: { label: string; isOpen: bo
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between px-4 py-3 mb-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+      className="w-full flex items-center justify-between px-4 py-3 mt-4 mb-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
     >
       {label}
       <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />

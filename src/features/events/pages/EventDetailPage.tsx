@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Calendar, MapPin, Users, DollarSign, Bell, Trophy, ChevronLeft } from 'lucide-react';
+import { Calendar, MapPin, Users, DollarSign, Bell, Trophy, ChevronLeft, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { getEvent } from '../services/eventService';
@@ -13,16 +13,21 @@ import {
 } from '@/features/registrations/services/registrationService';
 import { getEventPairs } from '@/features/pairs/services/pairService';
 import { getEventMatches } from '@/features/matches/services/matchService';
+import { getEventGroups } from '../services/groupService';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS, PLAYER_POSITIONS, TOURNAMENT_TYPES } from '@/utils/constants';
-import { formatPrice, countSets } from '@/utils/format';
-import type { PadelEvent, Registration, EventPair, Match } from '@/types';
+import { formatPrice, countSets, computePairRecords, pairRecordLabel } from '@/utils/format';
+import { AmericanoGroupsTab } from '../components/AmericanoGroupsTab';
+import { AmericanoMatchesTab } from '../components/AmericanoMatchesTab';
+import { AmericanoStandingsTab } from '../components/AmericanoStandingsTab';
+import { ReyRoundsTab } from '../components/ReyRoundsTab';
+import type { PadelEvent, Registration, EventPair, Match, EventGroup } from '@/types';
 
-type Tab = 'registrations' | 'pairs' | 'matches' | 'standings';
+type Tab = 'registrations' | 'pairs' | 'groups' | 'matches' | 'standings' | 'rounds';
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -32,33 +37,35 @@ export function EventDetailPage() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [pairs, setPairs] = useState<EventPair[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [groups, setGroups] = useState<EventGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('registrations');
+  const [activeTab, setActiveTab] = useState<Tab | null>('registrations');
+  const toggleTab = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
   const loadData = async () => {
     if (!eventId || !appUser) return;
     try {
-      const [ev, myReg, regs, prs, mtchs] = await Promise.all([
+      const [ev, myReg, regs, prs, mtchs, grps] = await Promise.all([
         getEvent(eventId),
         getUserEventRegistration(eventId, appUser.id),
         getEventRegistrations(eventId),
         getEventPairs(eventId),
         getEventMatches(eventId),
+        getEventGroups(eventId),
       ]);
       setEvent(ev);
       setMyRegistration(myReg);
       setRegistrations(regs);
       setPairs(prs);
       setMatches(mtchs);
+      setGroups(grps);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, [eventId]);
+  useEffect(() => { loadData(); }, [eventId]);
 
   if (loading || !event) return <Spinner />;
 
@@ -67,6 +74,12 @@ export function EventDetailPage() {
   const isFull = event.currentRegistrations >= event.maxCapacity;
   const canRegister = event.status === 'published' && !isRegistered && !isFull;
   const spotsLeft = event.maxCapacity - event.currentRegistrations;
+
+  const isAmericano = event.tournamentType === 'americano';
+  const isRey = event.tournamentType === 'rey';
+  const isLibre = event.tournamentType === 'libre';
+
+  const pairRecords = computePairRecords(matches);
 
   const handleRegister = async () => {
     if (!appUser || !eventId) return;
@@ -114,9 +127,7 @@ export function EventDetailPage() {
     return p ? `${p.player1Name} / ${p.player2Name}` : 'Pareja desconocida';
   };
 
-  const isLibre = event.tournamentType === 'libre';
-
-  // Pair standings (liga)
+  // Pair standings (liga/rey)
   const pairStandings = (() => {
     const stats: Record<string, { id: string; name: string; played: number; won: number; lost: number; setsWon: number; setsLost: number; gamesWon: number; gamesLost: number; points: number }> = {};
     pairs.forEach(p => {
@@ -179,14 +190,29 @@ export function EventDetailPage() {
 
   const standings = isLibre ? playerStandings : pairStandings;
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'registrations', label: `Inscriptos (${registrations.length})` },
-    { key: 'pairs', label: `Parejas (${pairs.length})` },
-    { key: 'matches', label: `Partidos (${matches.length})` },
-    { key: 'standings', label: 'Posiciones' },
-  ];
+  const tabs: { key: Tab; label: string }[] = isAmericano
+    ? [
+        { key: 'registrations', label: `Inscriptos (${registrations.length})` },
+        { key: 'pairs', label: `Parejas (${pairs.length})` },
+        { key: 'groups', label: `Grupos (${groups.length})` },
+        { key: 'matches', label: `Partidos (${matches.length})` },
+        { key: 'standings', label: 'Posiciones' },
+      ]
+    : isRey
+    ? [
+        { key: 'registrations', label: `Inscriptos (${registrations.length})` },
+        { key: 'pairs', label: `Parejas (${pairs.length})` },
+        { key: 'rounds', label: `Rondas (${new Set(matches.map(m => m.round)).size})` },
+        { key: 'standings', label: 'Posiciones' },
+      ]
+    : [
+        { key: 'registrations', label: `Inscriptos (${registrations.length})` },
+        { key: 'pairs', label: `Parejas (${pairs.length})` },
+        { key: 'matches', label: `Partidos (${matches.length})` },
+        { key: 'standings', label: 'Posiciones' },
+      ];
 
-  // Group matches by round for display
+  // For liga/libre matches grouping
   const matchGroups: Record<string, Match[]> = {};
   matches.forEach(m => {
     const key = m.round ? String(m.round) : 'manual';
@@ -247,10 +273,9 @@ export function EventDetailPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{event.description}</p>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             {canRegister && (
               <Button onClick={handleRegister} loading={actionLoading}>
-                {/* <img src="/favicon.svg" alt="" className="h-5 w-5 mr-2" /> */}
                 Inscribirme
               </Button>
             )}
@@ -272,62 +297,46 @@ export function EventDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Mensaje si está inscripto pero no pagó */}
       {isRegistered && !hasPaid && (
         <div className="mt-6 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-300">
           Ya estás inscripto, pero todavía figurás como <strong>pago pendiente</strong>. Una vez que el organizador confirme tu pago, vas a poder ver los inscriptos, parejas, partidos y posiciones del torneo.
         </div>
       )}
 
-      {/* Tabs visibles solo si el jugador está inscripto Y pagó */}
+      {/* Accordions visibles solo si inscripto y pagó */}
       {isRegistered && hasPaid && (
         <div className="mt-6">
-          <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto">
-            {tabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === tab.key
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
           {/* Inscriptos */}
+          <AccordionHeader label={tabs.find(t => t.key === 'registrations')!.label} isOpen={activeTab === 'registrations'} onClick={() => toggleTab('registrations')} />
           {activeTab === 'registrations' && (
-            <Card>
-              <CardContent className="py-4">
-                {registrations.length === 0 ? (
-                  <EmptyState title="Sin inscriptos" description="Todavía no hay jugadores inscriptos en este evento" />
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-200 dark:border-gray-700">
-                          <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Jugador</th>
-                          <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Posición</th>
+            <Card><CardContent className="py-4">
+              {registrations.length === 0 ? (
+                <EmptyState title="Sin inscriptos" description="Todavía no hay jugadores inscriptos en este evento" />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Jugador</th>
+                        <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Posición</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registrations.map(reg => (
+                        <tr key={reg.id} className="border-b border-gray-100 dark:border-gray-700">
+                          <td className="py-2.5">{reg.userName}{reg.userId === appUser?.id && <span className="text-xs text-blue-600 dark:text-blue-400 ml-2">(vos)</span>}</td>
+                          <td className="py-2.5">{PLAYER_POSITIONS[reg.userPosition]}</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {registrations.map(reg => (
-                          <tr key={reg.id} className="border-b border-gray-100 dark:border-gray-700">
-                            <td className="py-2.5">{reg.userName}{reg.userId === appUser?.id && <span className="text-xs text-blue-600 dark:text-blue-400 ml-2">(vos)</span>}</td>
-                            <td className="py-2.5">{PLAYER_POSITIONS[reg.userPosition]}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent></Card>
           )}
 
           {/* Parejas */}
+          <AccordionHeader label={tabs.find(t => t.key === 'pairs')!.label} isOpen={activeTab === 'pairs'} onClick={() => toggleTab('pairs')} />
           {activeTab === 'pairs' && (() => {
             const renderPair = (pair: EventPair, idx: number) => {
               const p1Pos = registrations.find(r => r.userId === pair.player1Id)?.userPosition;
@@ -341,14 +350,13 @@ export function EventDetailPage() {
                   <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
                   <span className="font-medium">{pair.player2Name}</span>
                   {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                  <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pair.id)})</span>
                 </div>
               );
             };
 
             if (pairs.length === 0) {
-              return (
-                <Card><CardContent className="py-4"><EmptyState title="Sin parejas" description="Todavía no se armaron las parejas" /></CardContent></Card>
-              );
+              return <Card><CardContent className="py-4"><EmptyState title="Sin parejas" description="Todavía no se armaron las parejas" /></CardContent></Card>;
             }
 
             if (isLibre) {
@@ -361,13 +369,11 @@ export function EventDetailPage() {
                     return (
                       <div key={round}>
                         <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Fecha {round}</h3>
-                        <Card>
-                          <CardContent className="py-4">
-                            <div className="space-y-2">
-                              {pairsInRound.map((pair, idx) => renderPair(pair, idx))}
-                            </div>
-                          </CardContent>
-                        </Card>
+                        <Card><CardContent className="py-4">
+                          <div className="space-y-2">
+                            {pairsInRound.map((pair, idx) => renderPair(pair, idx))}
+                          </div>
+                        </CardContent></Card>
                       </div>
                     );
                   })}
@@ -376,123 +382,176 @@ export function EventDetailPage() {
             }
 
             return (
-              <Card>
-                <CardContent className="py-4">
-                  <div className="space-y-2">
-                    {pairs.map((pair, idx) => renderPair(pair, idx))}
-                  </div>
-                </CardContent>
-              </Card>
+              <Card><CardContent className="py-4">
+                <div className="space-y-2">
+                  {pairs.map((pair, idx) => renderPair(pair, idx))}
+                </div>
+              </CardContent></Card>
             );
           })()}
 
-          {/* Partidos */}
-          {activeTab === 'matches' && (
-            <Card>
-              <CardContent className="py-4">
-                {matches.length === 0 ? (
-                  <EmptyState title="Sin partidos" description="Todavía no se cargaron los partidos" />
-                ) : (
-                  <div className="space-y-6">
-                    {sortedRoundKeys.map(key => (
-                      <div key={key}>
-                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
-                          {key === 'manual' ? 'Sin fecha' : `Fecha ${key}`}
-                        </h3>
-                        <div className="space-y-2">
-                          {matchGroups[key].map(m => (
-                            <div key={m.id} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-1">
-                              <div className="flex items-center gap-3">
-                                <span className={`font-medium flex-1 ${m.winnerId === m.pairAId ? 'text-green-700 dark:text-green-400' : ''}`}>{getPairName(m.pairAId)}</span>
-                                {m.scoreA && <span className="text-sm font-bold">{m.scoreA}</span>}
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className={`font-medium flex-1 ${m.winnerId === m.pairBId ? 'text-green-700 dark:text-green-400' : ''}`}>{getPairName(m.pairBId)}</span>
-                                {m.scoreB && <span className="text-sm font-bold">{m.scoreB}</span>}
-                              </div>
-                              {!m.winnerId && (
-                                <p className="text-xs text-gray-400 dark:text-gray-500 pt-1">Sin resultado</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Americano Groups */}
+          {isAmericano && (
+            <>
+              <AccordionHeader label={tabs.find(t => t.key === 'groups')!.label} isOpen={activeTab === 'groups'} onClick={() => toggleTab('groups')} />
+              {activeTab === 'groups' && (
+                <AmericanoGroupsTab event={event} pairs={pairs} groups={groups} matches={matches} registrations={registrations} onReload={loadData} isFinished={false} readOnly />
+              )}
+            </>
           )}
 
-          {/* Posiciones */}
-          {activeTab === 'standings' && (
-            <Card>
-              <CardContent className="py-4">
-                {pairs.length === 0 ? (
-                  <EmptyState title="Sin datos" description="Se mostrará cuando haya parejas y partidos" />
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-200 dark:border-gray-700">
-                          <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400 w-10">#</th>
-                          <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">{isLibre ? 'Jugador' : 'Pareja'}</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PJ</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PG</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PP</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">SG</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">SP</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Set±</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">GG</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">GP</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Game±</th>
-                          <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Pts</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {standings.map((s, idx) => {
-                          const setDiff = s.setsWon - s.setsLost;
-                          const gameDiff = s.gamesWon - s.gamesLost;
-                          // Highlight: pair row if admin view, or player row if libre
-                          const isMine = isLibre
-                            ? s.id === appUser?.id
-                            : (() => {
-                              const p = pairs.find(pr => pr.id === s.id);
-                              return !!(p && (p.player1Id === appUser?.id || p.player2Id === appUser?.id));
-                            })();
-                          return (
-                            <tr key={s.id} className={`border-b border-gray-100 dark:border-gray-700 ${isMine ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                              <td className="py-2.5">
-                                <span className={`font-bold ${idx === 0 ? 'text-yellow-500' : idx < 3 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                                  {idx + 1}
-                                </span>
-                              </td>
-                              <td className="py-2.5 font-medium">{s.name}</td>
-                              <td className="py-2.5 text-center">{s.played}</td>
-                              <td className="py-2.5 text-center">{s.won}</td>
-                              <td className="py-2.5 text-center">{s.lost}</td>
-                              <td className="py-2.5 text-center">{s.setsWon}</td>
-                              <td className="py-2.5 text-center">{s.setsLost}</td>
-                              <td className="py-2.5 text-center">{setDiff > 0 ? '+' : ''}{setDiff}</td>
-                              <td className="py-2.5 text-center">{s.gamesWon}</td>
-                              <td className="py-2.5 text-center">{s.gamesLost}</td>
-                              <td className="py-2.5 text-center">{gameDiff > 0 ? '+' : ''}{gameDiff}</td>
-                              <td className="py-2.5 text-center font-bold">{s.points}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
-                      PJ: jugados · PG/PP: partidos ganados/perdidos · SG/SP: sets · GG/GP: games · Pts: puntos
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Americano Posiciones first */}
+          {isAmericano && (
+            <>
+              <AccordionHeader label={tabs.find(t => t.key === 'standings')!.label} isOpen={activeTab === 'standings'} onClick={() => toggleTab('standings')} />
+              {activeTab === 'standings' && (
+                <AmericanoStandingsTab event={event} pairs={pairs} groups={groups} matches={matches} />
+              )}
+            </>
+          )}
+
+          {/* Americano Matches */}
+          {isAmericano && (
+            <>
+              <AccordionHeader label={tabs.find(t => t.key === 'matches')!.label} isOpen={activeTab === 'matches'} onClick={() => toggleTab('matches')} />
+              {activeTab === 'matches' && (
+                <AmericanoMatchesTab event={event} pairs={pairs} groups={groups} matches={matches} onReload={loadData} appUserId={appUser?.id || ''} isFinished={false} readOnly />
+              )}
+            </>
+          )}
+
+          {/* Rey Rounds */}
+          {isRey && (
+            <>
+              <AccordionHeader label={tabs.find(t => t.key === 'rounds')!.label} isOpen={activeTab === 'rounds'} onClick={() => toggleTab('rounds')} />
+              {activeTab === 'rounds' && (
+                <ReyRoundsTab event={event} pairs={pairs} matches={matches} appUserId={appUser?.id || ''} onReload={loadData} isFinished={false} readOnly />
+              )}
+            </>
+          )}
+
+          {/* Liga/Libre Matches */}
+          {!isAmericano && !isRey && (
+            <>
+              <AccordionHeader label={tabs.find(t => t.key === 'matches')!.label} isOpen={activeTab === 'matches'} onClick={() => toggleTab('matches')} />
+              {activeTab === 'matches' && (
+                <Card><CardContent className="py-4">
+                  {matches.length === 0 ? (
+                    <EmptyState title="Sin partidos" description="Todavía no se cargaron los partidos" />
+                  ) : (
+                    <div className="space-y-6">
+                      {sortedRoundKeys.map(key => (
+                        <div key={key}>
+                          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
+                            {key === 'manual' ? 'Sin fecha' : `Fecha ${key}`}
+                          </h3>
+                          <div className="space-y-2">
+                            {matchGroups[key].map(m => (
+                              <div key={m.id} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-1">
+                                <div className="flex items-center gap-3">
+                                  <span className={`font-medium flex-1 ${m.winnerId === m.pairAId ? 'text-green-700 dark:text-green-400' : ''}`}>{getPairName(m.pairAId)}</span>
+                                  {m.scoreA && <span className="text-sm font-bold">{m.scoreA}</span>}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className={`font-medium flex-1 ${m.winnerId === m.pairBId ? 'text-green-700 dark:text-green-400' : ''}`}>{getPairName(m.pairBId)}</span>
+                                  {m.scoreB && <span className="text-sm font-bold">{m.scoreB}</span>}
+                                </div>
+                                {!m.winnerId && <p className="text-xs text-gray-400 dark:text-gray-500 pt-1">Sin resultado</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent></Card>
+              )}
+            </>
+          )}
+
+          {/* Liga/Libre/Rey Standings */}
+          {!isAmericano && (
+            <>
+              <AccordionHeader label={tabs.find(t => t.key === 'standings')!.label} isOpen={activeTab === 'standings'} onClick={() => toggleTab('standings')} />
+              {activeTab === 'standings' && (
+                <Card><CardContent className="py-4">
+                  {pairs.length === 0 ? (
+                    <EmptyState title="Sin datos" description="Se mostrará cuando haya parejas y partidos" />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 dark:border-gray-700">
+                            <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400 w-10">#</th>
+                            <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">{isLibre ? 'Jugador' : 'Pareja'}</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PJ</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PG</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">PP</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">SG</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">SP</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Set±</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">GG</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">GP</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Game±</th>
+                            <th className="text-center py-2 font-medium text-gray-500 dark:text-gray-400">Pts</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {standings.map((s, idx) => {
+                            const setDiff = s.setsWon - s.setsLost;
+                            const gameDiff = s.gamesWon - s.gamesLost;
+                            const isMine = isLibre
+                              ? s.id === appUser?.id
+                              : (() => {
+                                const p = pairs.find(pr => pr.id === s.id);
+                                return !!(p && (p.player1Id === appUser?.id || p.player2Id === appUser?.id));
+                              })();
+                            return (
+                              <tr key={s.id} className={`border-b border-gray-100 dark:border-gray-700 ${isMine ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                                <td className="py-2.5">
+                                  <span className={`font-bold ${idx === 0 ? 'text-yellow-500' : idx < 3 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                    {idx + 1}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 font-medium">{s.name}</td>
+                                <td className="py-2.5 text-center">{s.played}</td>
+                                <td className="py-2.5 text-center">{s.won}</td>
+                                <td className="py-2.5 text-center">{s.lost}</td>
+                                <td className="py-2.5 text-center">{s.setsWon}</td>
+                                <td className="py-2.5 text-center">{s.setsLost}</td>
+                                <td className="py-2.5 text-center">{setDiff > 0 ? '+' : ''}{setDiff}</td>
+                                <td className="py-2.5 text-center">{s.gamesWon}</td>
+                                <td className="py-2.5 text-center">{s.gamesLost}</td>
+                                <td className="py-2.5 text-center">{gameDiff > 0 ? '+' : ''}{gameDiff}</td>
+                                <td className="py-2.5 text-center font-bold">{s.points}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
+                        PJ: jugados · PG/PP: partidos ganados/perdidos · SG/SP: sets · GG/GP: games · Pts: puntos
+                      </p>
+                    </div>
+                  )}
+                </CardContent></Card>
+              )}
+            </>
           )}
         </div>
       )}
     </div>
+  );
+}
+
+function AccordionHeader({ label, isOpen, onClick }: { label: string; isOpen: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between px-4 py-3 mt-4 mb-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+    >
+      {label}
+      <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+    </button>
   );
 }
