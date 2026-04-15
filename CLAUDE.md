@@ -7,11 +7,12 @@ Este archivo se carga automáticamente al inicio de cada sesión. Sirve para que
 **Px4Dx3L Hub** — plataforma web para organizar torneos de pádel.
 
 - **Repo**: https://github.com/davjmv85/padel-app
+- **Local clonado**: C:\Users\pituj\GitHub\padel-app
 - **Sites en producción**:
   - https://padel-hub.web.app
   - https://padel-hub-4b3a0.web.app
 - **Firebase project**: `padel-hub-4b3a0` (CLI logueado con `jmv.dev256@gmail.com`)
-- **Documentación completa**: ver `README.md` en la raíz
+- **Documentación completa**: ver `C:\Users\pituj\GitHub\padel-app\README.md` 
 
 ## Stack
 
@@ -57,7 +58,8 @@ src/
     layout/               → AppLayout (sidebar + main), ProtectedRoute
   features/
     auth/                 → login, register, profile, verify email
-    events/               → list/detail player y admin, form
+    events/               → list/detail player y admin, form, americano tabs (Config, Groups, Matches, Standings)
+                            services/groupService.ts → CRUD de event_groups
     registrations/        → service, my registrations page
     pairs/                → service
     matches/              → service
@@ -74,6 +76,7 @@ src/
     constants.ts          → ROLES, EVENT_STATUSES, TOURNAMENT_TYPES, etc.
     format.ts             → formatPrice, inverseScore, countSets, determineWinner, buildDisplayName
     validation.ts         → schemas Zod
+    americano.ts          → lógica de fixtures de grupo, repechaje y bracket de eliminación
 public/
   favicon.svg             → paleta de pádel + pelotita
   logo.svg                → "Px4Dx3L Hub" + pelotita
@@ -86,10 +89,11 @@ firebase.json             → multi-site hosting config
 ## Modelos Firestore (resumen)
 
 - `users/{uid}` — perfil del usuario. Campos: email, displayName, firstName, lastName, **nickname?**, position, role (admin/collaborator/player), adminCreated?
-- `events/{id}` — torneo. Campos: name, location, date, time, maxCapacity, price, status (draft/published/closed/finished/cancelled), **tournamentType (liga/libre)**, currentRegistrations, createdBy, createdByEmail, createdByName
+- `events/{id}` — torneo. Campos: name, location, date, time, maxCapacity, price, status (draft/published/closed/finished/cancelled), **tournamentType (liga/libre/americano)**, currentRegistrations, createdBy, createdByEmail, createdByName, **americanoConfig?** (minMatches, groupCount, directQualifiers), **americanoPhase?** (setup/groups/repechaje/elimination/finished)
 - `registrations/{id}` — colección global. Campos: eventId, userId, userName (cache), userPosition (cache), paymentStatus (pending/paid/cancelled), status (active/cancelled)
 - `event_pairs/{id}` — parejas. Campos: eventId, player1Id/Name, player2Id/Name, **round?** (solo libre)
-- `matches/{id}` — partidos. Campos: eventId, pairAId, pairBId, scoreA, scoreB, winnerId, **round?**
+- `matches/{id}` — partidos. Campos: eventId, pairAId, pairBId, scoreA, scoreB, winnerId, **round?**, **phase?** ('group'|'repechaje'|'elimination'), **groupNumber?**, **bracketRound?**, **bracketPosition?**
+- `event_groups/{id}` — grupos de americano. Campos: eventId, groupNumber, pairIds[]
 - `rankings/{userId}` — ranking global materializado. totalPoints, matchesWon, matchesPlayed
 - `waitlist/{id}` — lista de espera. eventId, userId, userEmail, notified
 
@@ -105,6 +109,7 @@ Un staff (admin/collaborator) puede ALSO jugar como player.
 
 - **`liga`**: parejas fijas para todo el torneo. Auto-armar genera round-robin de 3 rondas. Posiciones por pareja.
 - **`libre`**: parejas cambian por fecha. Cada `event_pair` tiene `round`. Auto-armar parejas evita repetir combinaciones de fechas anteriores. Auto-armar partidos genera todos los cruces dentro de cada fecha. Posiciones por jugador individual.
+- **`americano`**: grupos + repechaje + eliminación directa. Parámetros configurables: `minMatches` (mínimo de partidos por pareja), `groupCount`, `directQualifiers` (clasificados directos por grupo). Fases: `setup → groups → repechaje → elimination → finished`. El admin avanza de fase manualmente.
 
 ## Convenciones del proyecto
 
@@ -150,6 +155,7 @@ Un staff (admin/collaborator) puede ALSO jugar como player.
 7. **Auto-armar parejas en libre**: NUNCA debe repetir combinaciones de fechas anteriores (la repetición se hace solo manualmente).
 8. **Tab Inscriptos** (jugador): solo se muestra si el jugador está inscripto Y pagó.
 9. **Cuando se cargan/editan/borran matches**: llamar a `recalculateRankings()` después.
+10. **Americano**: el avance de fase es explícito — el admin debe avanzar de fase manualmente (no se avanza automáticamente al completar partidos).
 
 ## Cuentas
 

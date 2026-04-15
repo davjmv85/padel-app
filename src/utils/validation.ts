@@ -34,5 +34,11 @@ export const eventSchema = z.object({
   price: z.coerce.number().min(0, 'El precio no puede ser negativo'),
   description: z.string().optional(),
   status: z.enum(['draft', 'published', 'closed', 'finished', 'cancelled']),
-  tournamentType: z.enum(['liga', 'libre']),
+  tournamentType: z.enum(['liga', 'libre', 'americano', 'rey']),
+});
+
+export const americanoConfigSchema = z.object({
+  minMatches: z.coerce.number().min(2, 'Mínimo 2 partidos'),
+  groupCount: z.coerce.number().min(1, 'Mínimo 1 grupo'),
+  directQualifiers: z.coerce.number().min(1, 'Mínimo 1 clasificado directo por grupo'),
 });

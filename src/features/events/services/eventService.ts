@@ -40,6 +40,27 @@ export async function updateEvent(eventId: string, data: Partial<EventFormData>)
   await updateDoc(doc(db, 'events', eventId), updateData);
 }
 
+export async function updateAmericanoConfig(eventId: string, config: import('@/types').AmericanoConfig): Promise<void> {
+  await updateDoc(doc(db, 'events', eventId), {
+    americanoConfig: config,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateAmericanoPhase(eventId: string, phase: import('@/types').AmericanoPhase): Promise<void> {
+  await updateDoc(doc(db, 'events', eventId), {
+    americanoPhase: phase,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateReyConfig(eventId: string, config: import('@/types').ReyConfig): Promise<void> {
+  await updateDoc(doc(db, 'events', eventId), {
+    reyConfig: config,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function deleteEvent(eventId: string): Promise<void> {
   await deleteDoc(doc(db, 'events', eventId));
 }

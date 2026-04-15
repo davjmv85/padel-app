@@ -80,6 +80,9 @@ padel-app/
 │   ├── features/
 │   │   ├── auth/            → login, register, forgot password, profile, verify email
 │   │   ├── events/          → CRUD eventos, listados player/admin, detalle con tabs
+│   │   │   ├── services/groupService.ts → CRUD de event_groups (americano)
+│   │   │   ├── services/reyService.ts   → generación de rondas con rotación (rey)
+│   │   │   └── components/  → AmericanoConfigTab, AmericanoGroupsTab, AmericanoMatchesTab, AmericanoStandingsTab, ReyConfigTab, ReyRoundsTab
 │   │   ├── registrations/   → inscripción, cancelación, mis inscripciones
 │   │   ├── pairs/           → service para crear/eliminar parejas
 │   │   ├── matches/         → service para crear/editar/borrar partidos
@@ -96,7 +99,9 @@ padel-app/
 │   ├── utils/
 │   │   ├── constants.ts     → ROLES, EVENT_STATUSES, TOURNAMENT_TYPES, ...
 │   │   ├── format.ts        → formatPrice, inverseScore, countSets, determineWinner
-│   │   └── validation.ts    → schemas Zod
+│   │   ├── validation.ts    → schemas Zod
+│   │   ├── americano.ts     → lógica de fixtures de grupo, repechaje y bracket de eliminación
+│   │   └── rey.ts           → lógica de rotación de canchas para Rey de Cancha
 │   └── main.tsx             → entry point
 ├── firestore.rules          → security rules por colección
 ├── firestore.indexes.json   → índices compuestos
@@ -140,7 +145,10 @@ Evento de pádel (torneo).
 | `price` | number | precio por jugador |
 | `description?` | string | opcional |
 | `status` | `'draft' \| 'published' \| 'closed' \| 'finished' \| 'cancelled'` | estado |
-| `tournamentType` | `'liga' \| 'libre'` | tipo de torneo (default `liga`) |
+| `tournamentType` | `'liga' \| 'libre' \| 'americano' \| 'rey'` | tipo de torneo (default `liga`, inmutable) |
+| `americanoConfig?` | object | config de americano: `{ minMatches, groupCount, directQualifiers }` |
+| `americanoPhase?` | `'setup' \| 'groups' \| 'repechaje' \| 'elimination' \| 'finished'` | fase actual del americano |
+| `reyConfig?` | object | config de rey: `{ courts: ReyCourt[], winnersCourtId, losersCourtId, seedMode }` |
 | `currentRegistrations` | number | contador desnormalizado (se actualiza con transaction) |
 | `createdBy` | string | userId del creador |
 | `createdByEmail?` | string | email del creador (cache para mostrar en UI) |
@@ -182,9 +190,25 @@ Partidos entre parejas.
 | `pairAId`, `pairBId` | string | refs a parejas |
 | `scoreA`, `scoreB` | string | score en formato "6-4 6-3" |
 | `winnerId` | string | pairId del ganador (vacío si aún no hay resultado) |
-| `round?` | number | número de fecha/jornada |
+| `round?` | number | número de fecha/jornada (o ronda en rey) |
+| `phase?` | `'group' \| 'repechaje' \| 'elimination'` | fase del partido (solo americano) |
+| `groupNumber?` | number | número de grupo (solo americano, fase group) |
+| `bracketRound?` | number | ronda del bracket (solo americano, fase elimination) |
+| `bracketPosition?` | number | posición en el bracket (solo americano, fase elimination) |
+| `courtId?` | string | id de cancha (solo rey) |
+| `courtName?` | string | nombre de cancha cacheado (solo rey) |
 | `createdBy` | string | userId |
 | `createdAt`, `updatedAt` | Timestamp | |
+
+### `event_groups/{groupId}`
+Grupos de americano.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `eventId` | string | ref al evento |
+| `groupNumber` | number | número del grupo (1, 2, ...) |
+| `pairIds` | string[] | refs a parejas del grupo |
+| `createdAt` | Timestamp | |
 
 ### `rankings/{userId}`
 Ranking global materializado por jugador. Se **recalcula desde el cliente** cada vez que se carga/edita/borra un match.
@@ -345,6 +369,8 @@ match /rankings/{rankingId} {
 **Tipos de torneo**:
 - `liga`: parejas fijas para todo el torneo. Auto-armar genera round-robin de 3 rondas.
 - `libre`: parejas cambian por fecha. Admin arma parejas por fecha, partidos solo se pueden crear dentro de una fecha existente.
+- `americano`: grupos + repechaje + eliminación directa. Parámetros configurables (minMatches, groupCount, directQualifiers). Fases: setup → groups → repechaje → elimination → finished. El admin avanza de fase manualmente.
+- `rey`: Rey de Cancha. Parejas fijas jugando rondas sucesivas en canchas ordenadas en línea. Ganador sube hacia la "cancha de ganadores", perdedor baja hacia la "cancha de perdedores". La posición en cancha refleja el nivel actual. Los cruces pueden repetirse (es parte del juego). Sin duración fija: se generan rondas mientras el admin quiera.
 
 **Listado admin** con menú kebab por evento: **Gestionar**, **Editar**, **Eliminar** (solo admin).
 
@@ -361,6 +387,11 @@ match /rankings/{rankingId} {
   - Liga: por pareja
   - Libre: por jugador individual
   - Orden: puntos → diferencia de sets → diferencia de games
+- **Americano** (pestañas específicas cuando el tipo es `americano`):
+  - **Config** — configurar minMatches, groupCount, directQualifiers (AmericanoConfigTab)
+  - **Grupos** — asignar parejas a grupos, ver composición (AmericanoGroupsTab)
+  - **Partidos** — partidos agrupados por fase: group, repechaje, elimination (AmericanoMatchesTab)
+  - **Posiciones** — standings por grupo y generales (AmericanoStandingsTab)
 
 **Header compacto** con badge de estado, breadcrumb para volver a la lista, meta info (tipo, cupo, precio, organizador) y botón de editar.
 
@@ -415,7 +446,24 @@ match /rankings/{rankingId} {
 - **Liga**: round-robin rotation de 3 rondas. Cada pareja juega exactamente 3 partidos. Los partidos se guardan con `round` (1, 2, 3...) para agruparlos. Se saltean duplicados si ya existen partidos.
 - **Libre**: genera todos los cruces dentro de cada fecha. Las parejas de fecha 1 juegan entre sí, las de fecha 2 entre sí, etc.
 
-**Borrar todos los partidos** con confirmación (recalcula ranking).
+**Auto-armado americano** (`src/utils/americano.ts`):
+- **Fase grupos**: fixture parcial round-robin dentro de cada grupo, garantizando al menos `minMatches` partidos por pareja (se iteran rondas del round-robin hasta que todas las parejas llegan al mínimo — necesario porque con grupos impares una pareja descansa por ronda). Partidos se crean con `phase: 'group'` y `groupNumber`.
+- **Repechaje**: parejas que no clasificaron directamente compiten por los lugares restantes. Partidos con `phase: 'repechaje'`.
+- **Eliminación**: bracket con seeding basado en posiciones de grupo. Partidos con `phase: 'elimination'`, `bracketRound` y `bracketPosition`.
+
+**Separación "borrar resultado" vs "borrar partido"**:
+- Partido sin resultado → kebab ofrece *Cargar resultado* / *Borrar partido*.
+- Partido con resultado → kebab ofrece *Editar resultado* / *Borrar resultado*. Para borrar el partido entero hay que vaciar el resultado primero (o resetear desde Configuración).
+- *Borrar resultado* usa `clearMatchResult` (limpia `scoreA/B` y `winnerId`), mantiene el cruce y recalcula ranking.
+
+**Gating por fase (americano)**:
+- `setup`: se puede editar todo (parejas, grupos, config).
+- `groups` en adelante: parejas congeladas (banner amarillo + botones disabled). Para modificarlas hay que resetear el americano.
+- Partidos de fases anteriores a la vigente: se puede cargar/editar/borrar el resultado, pero NO se puede eliminar el partido entero.
+
+**Reset americano (zona de peligro en Configuración)**:
+- Borra partidos, grupos y parejas; recalcula ranking; vuelve la fase a `setup`. Conserva la config.
+- Confirmación por nombre exacto del evento.
 
 ### 8.7 Posiciones por evento
 
@@ -475,6 +523,8 @@ Página HTML standalone en `/seed.html` para que un admin pueda crear muchos jug
    - Lo inscribe al evento elegido con `paymentStatus: pending`
 6. Actualiza el contador del evento al final
 
+**Respeta el cupo**: antes de procesar, relee el evento para tener `currentRegistrations` fresco. Si el evento está lleno, aborta con error sin inscribir a nadie. Si la lista tiene más jugadores que cupo libre, procesa solo los primeros N y avisa del resto. Si el cupo se alcanza durante el procesamiento (por concurrencia o corte manual), saltea los restantes.
+
 Maneja el caso "email ya existe" buscando el uid en Firestore y reutilizándolo.
 
 ### 8.12 Dark mode
@@ -497,7 +547,42 @@ Maneja el caso "email ya existe" buscando el uid en Firestore y reutilizándolo.
 - **Logo clickeable**: te lleva al dashboard (staff) o a eventos (player)
 - **Cancha como fondo** del main en dark mode
 
-### 8.14 UX polish
+### 8.14 Rey de Cancha
+
+Modalidad donde las parejas rotan entre canchas según ganen o pierdan cada ronda. El orden de las canchas codifica el nivel actual de cada pareja.
+
+**Accordions (orden)**: Inscriptos → Configuración → Parejas → Rondas → Posiciones.
+
+**Configuración** (`ReyConfigTab`):
+- **Canchas** ordenadas en una lista. Agregar/renombrar/eliminar/reordenar (↑↓). Una vez que hay rondas generadas, las canchas se bloquean.
+- **Cancha de referencia de ganadores**: hacia donde sube el ganador. Por defecto la primera cancha de la lista.
+- **Cancha de referencia de perdedores**: hacia donde baja el perdedor. Por defecto la última.
+- **Modo de seed inicial**: `random` (reparte al azar) o `manual` (admin asigna pareja-a-cancha con selects).
+- **Reset completo**: borra parejas, partidos y recalcula ranking. Confirmación por nombre de evento. Conserva la config.
+- La config se puede guardar sin tener parejas todavía (muestra warning).
+
+**Parejas**: reutiliza el flujo de liga (parejas fijas, auto-armar priorizando posición). Cuando ya hay rondas generadas, las parejas quedan congeladas con banner amarillo.
+
+**Rondas** (`ReyRoundsTab`):
+- **Ronda 1**: botón "Generar ronda 1". Si el modo es `manual`, abre un modal con selects por cancha; si es `random`, reparte al azar.
+- **Cada ronda** muestra una card por cancha con el partido y un kebab para cargar/editar/borrar resultado o borrar partido (solo ronda actual sin resultado).
+- **Sección "Descansan"** cuando hay más parejas que cupo (pares sobrantes por ronda).
+- **"Generar ronda N+1"** se habilita cuando todos los resultados de la ronda actual están cargados.
+- **No hay final forzado**: se siguen generando rondas mientras el admin quiera.
+
+**Algoritmo de rotación** (`src/utils/rey.ts`):
+1. Para cada partido resuelto, se calcula la próxima cancha del ganador y del perdedor con `nextCourtOrder(current, target) = current + sign(target - current)` (0 si ya está en la referencia).
+2. Cada cancha queda con un "bucket" de parejas que la elegirán para la próxima ronda.
+3. Si un bucket tiene >2 parejas, las excedentes van al pool de descanso priorizando a las que más jugaron (les toca descansar).
+4. Si un bucket tiene <2, se completa desde el pool de descanso priorizando a las que menos jugaron.
+5. Las parejas en descanso **no suman "partido jugado"**.
+6. **Los cruces pueden repetirse**: es una consecuencia esperada del algoritmo (si A y B oscilan entre canchas adyacentes, se van a volver a cruzar). No se aplica anti-repetición.
+
+**Posiciones**: se usa la tabla de standings por pareja compartida con liga (PJ, PG, PP, GG, GP, Game±, Pts).
+
+**Ranking global**: se alimenta como siempre — `recalculateRankings()` después de cada cambio en matches.
+
+### 8.15 UX polish
 
 - **Breadcrumbs** en detalles de evento (admin y player) para volver al listado
 - **Menús kebab** para acciones secundarias (no saturar la UI con botones)
@@ -505,6 +590,7 @@ Maneja el caso "email ya existe" buscando el uid en Firestore y reutilizándolo.
 - **Formato de precio** con separador de miles (22.000)
 - **Fechas en es-AR**
 - **Confirmaciones** para acciones destructivas (eliminar evento, borrar todo)
+- **Reset con nombre**: las acciones de reset de americano y rey piden escribir el nombre exacto del evento (no un simple "sí/no")
 - **Toast notifications** para feedback de acciones
 - **Estados vacíos** con ícono + mensaje explicativo
 - **Loading states** con spinner
@@ -626,6 +712,11 @@ Creado con `@BotFather`. Token y chat ID en `.env`. El bot debe haber recibido a
 - **Instancia secundaria de Firebase en el seed**: permite crear users sin deslogear al admin. Después de crear cada uno, se hace signOut del secondary y deleteApp para liberar recursos.
 - **Posiciones calculadas en memoria, ranking materializado**: las posiciones son ephemeral y baratas de calcular; el ranking es consultado por muchos y se guarda.
 - **Modo libre reusa el modelo de parejas**: agregando un campo `round` opcional en vez de crear una colección nueva.
+- **Americano usa `event_groups` como colección separada**: permite queries por evento y manipulación independiente de la composición de grupos. Los campos `phase`, `groupNumber`, `bracketRound` y `bracketPosition` en matches permiten filtrar y agrupar partidos por fase sin colecciones adicionales.
+- **Rey de Cancha no tiene colección de canchas**: se guardan como array dentro de `reyConfig` en el evento. Es un conjunto chico (<20) y siempre se lee/escribe junto con la config. Los partidos referencian por `courtId` + `courtName` (cache).
+- **Rondas de Rey se derivan de matches**: no hay doc "round" ni "state". Los partidos con `round = N` son la ronda N; el estado (ganadores, perdedores, descansos) se recomputa leyendo los matches. Simplifica mucho: un solo source of truth.
+- **Orden de accordions en americano**: Inscriptos → Configuración → Parejas → Grupos → Posiciones → Partidos (Posiciones antes que Partidos porque es más consultado durante el torneo). Rey: Inscriptos → Configuración → Parejas → Rondas → Posiciones.
+- **Posiciones en americano** muestra solo tablas por grupo + "no clasificados con bye". El bracket eliminatorio y repechaje viven en "Partidos", no en "Posiciones" (evita duplicación).
 
 ---
 

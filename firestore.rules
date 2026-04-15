@@ -68,6 +68,12 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    // Event groups collection (americano)
+    match /event_groups/{groupId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isStaff();
+    }
+
     // Waitlist collection
     match /waitlist/{waitlistId} {
       allow read: if isAuthenticated();

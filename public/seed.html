@@ -26,14 +26,30 @@
 4. Ejecutá.</p>
 
 <label>Lista de jugadores (uno por línea)</label>
-<textarea id="players" rows="14" placeholder="Formato: Nombre|Apellido|email@real.com|posicion
-
-Donde posicion es una de: drive, reves, indistinto
-
-Ejemplo:
-Martin|Gonzalez|martin@gmail.com|drive
-Lucas|Rodriguez|lucas@gmail.com|reves
-Federico|Lopez|fede@gmail.com|indistinto"></textarea>
+<textarea id="players" rows="26">Martin|Gonzalez|martin.gonzalez.pdl@gmail.com|drive
+Lucas|Rodriguez|lucas.rodriguez.pdl@gmail.com|reves
+Federico|Lopez|federico.lopez.pdl@gmail.com|indistinto
+Agustin|Perez|agustin.perez.pdl@gmail.com|drive
+Santiago|Diaz|santiago.diaz.pdl@gmail.com|reves
+Tomas|Martinez|tomas.martinez.pdl@gmail.com|indistinto
+Nicolas|Fernandez|nicolas.fernandez.pdl@gmail.com|drive
+Matias|Garcia|matias.garcia.pdl@gmail.com|reves
+Ignacio|Sanchez|ignacio.sanchez.pdl@gmail.com|indistinto
+Pablo|Romero|pablo.romero.pdl@gmail.com|drive
+Diego|Alvarez|diego.alvarez.pdl@gmail.com|reves
+Facundo|Torres|facundo.torres.pdl@gmail.com|indistinto
+Gonzalo|Herrera|gonzalo.herrera.pdl@gmail.com|drive
+Leandro|Moreno|leandro.moreno.pdl@gmail.com|reves
+Ezequiel|Castro|ezequiel.castro.pdl@gmail.com|indistinto
+Andres|Ruiz|andres.ruiz.pdl@gmail.com|drive
+Joaquin|Medina|joaquin.medina.pdl@gmail.com|reves
+Sebastian|Sosa|sebastian.sosa.pdl@gmail.com|indistinto
+Ramiro|Aguirre|ramiro.aguirre.pdl@gmail.com|drive
+Damian|Flores|damian.flores.pdl@gmail.com|reves
+Cristian|Cabrera|cristian.cabrera.pdl@gmail.com|indistinto
+Maximiliano|Rios|maximiliano.rios.pdl@gmail.com|drive
+Franco|Dominguez|franco.dominguez.pdl@gmail.com|reves
+Emiliano|Vargas|emiliano.vargas.pdl@gmail.com|indistinto</textarea>
 <p class="hint">Separá cada campo con "|" (pipe). Posicion: drive, reves o indistinto.</p>
 
 <div>
@@ -53,7 +69,7 @@ Federico|Lopez|fede@gmail.com|indistinto"></textarea>
 <script type="module">
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, addDoc, updateDoc, collection, query, where, getDocs, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, addDoc, updateDoc, getDoc, collection, query, where, getDocs, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyB0c3F_2UxWu0rwpNBIC61mE1EWB6xExNQ",
@@ -147,6 +163,32 @@ window.run = async function() {
   print('', '');
   print('Evento: ' + event.name + ' (id: ' + event.id + ')', 'info');
   print('Jugadores a procesar: ' + players.length, 'info');
+
+  // Re-fetch fresh capacity from Firestore
+  let currentCount = event.currentRegistrations || 0;
+  let maxCapacity = event.maxCapacity || 0;
+  try {
+    const evSnap = await getDoc(doc(db, 'events', eventId));
+    if (evSnap.exists()) {
+      const evData = evSnap.data();
+      currentCount = evData.currentRegistrations || 0;
+      maxCapacity = evData.maxCapacity || 0;
+    }
+  } catch (e) {
+    print('⚠ No pude leer el cupo actualizado: ' + e.message, 'warn');
+  }
+
+  const remaining = Math.max(0, maxCapacity - currentCount);
+  print('Cupo: ' + currentCount + '/' + maxCapacity + ' — libres: ' + remaining, 'info');
+
+  if (remaining === 0) {
+    print('✗ Evento sin cupo. No se inscribe a nadie.', 'err');
+    document.getElementById('runBtn').disabled = false;
+    return;
+  }
+  if (players.length > remaining) {
+    print('⚠ Se procesarán los primeros ' + remaining + ' jugadores (los otros ' + (players.length - remaining) + ' quedan sin inscribir).', 'warn');
+  }
   print('---', '');
 
   document.getElementById('runBtn').disabled = true;
@@ -155,6 +197,10 @@ window.run = async function() {
   const now = Timestamp.now();
 
   for (const player of players) {
+    if (registeredCount >= remaining) {
+      print('⚠ Cupo alcanzado. Jugador no procesado: ' + player.firstName + ' ' + player.lastName, 'warn');
+      continue;
+    }
     const displayName = player.firstName + ' ' + player.lastName;
     print('>>> ' + displayName + ' (' + player.email + ')', 'info');
 
@@ -251,13 +297,13 @@ window.run = async function() {
   // 5. Update event counter
   if (registeredCount > 0) {
     try {
-      const newCount = (event.currentRegistrations || 0) + registeredCount;
+      const newCount = currentCount + registeredCount;
       await updateDoc(doc(db, 'events', eventId), {
         currentRegistrations: newCount,
         updatedAt: now,
       });
       print('', '');
-      print('Contador del evento actualizado: ' + newCount + '/' + event.maxCapacity, 'ok');
+      print('Contador del evento actualizado: ' + newCount + '/' + maxCapacity, 'ok');
     } catch (e) {
       print('✗ Error actualizando contador: ' + e.message, 'err');
     }

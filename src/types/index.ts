@@ -10,13 +10,37 @@ export type PlayerPosition = 'drive' | 'reves' | 'indistinto';
 export type EventStatus = 'draft' | 'published' | 'closed' | 'finished' | 'cancelled';
 
 // Tournament type
-export type TournamentType = 'liga' | 'libre';
+export type TournamentType = 'liga' | 'libre' | 'americano' | 'rey';
+
+// Rey de Cancha
+export interface ReyCourt {
+  id: string;
+  name: string;
+  order: number;
+}
+
+export interface ReyConfig {
+  courts: ReyCourt[];
+  winnersCourtId: string;
+  losersCourtId: string;
+  seedMode: 'random' | 'manual';
+}
 
 // Payment status
 export type PaymentStatus = 'pending' | 'paid' | 'cancelled';
 
 // Registration status
 export type RegistrationStatus = 'active' | 'cancelled';
+
+// Americano tournament
+export type AmericanoPhase = 'setup' | 'groups' | 'repechaje' | 'elimination' | 'finished';
+export type MatchPhase = 'group' | 'repechaje' | 'elimination';
+
+export interface AmericanoConfig {
+  minMatches: number;
+  groupCount: number;
+  directQualifiers: number;
+}
 
 // User
 export interface AppUser {
@@ -46,6 +70,9 @@ export interface PadelEvent {
   description?: string;
   status: EventStatus;
   tournamentType: TournamentType;
+  americanoConfig?: AmericanoConfig;
+  americanoPhase?: AmericanoPhase;
+  reyConfig?: ReyConfig;
   currentRegistrations: number;
   createdBy: string;
   createdByEmail?: string;
@@ -93,6 +120,12 @@ export interface Match {
   scoreB: string;
   winnerId: string;
   round?: number;
+  phase?: MatchPhase;
+  groupNumber?: number;
+  bracketRound?: number;
+  bracketPosition?: number;
+  courtId?: string;
+  courtName?: string;
   createdBy: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -116,6 +149,15 @@ export interface WaitlistEntry {
   userId: string;
   userEmail: string;
   notified: boolean;
+  createdAt: Timestamp;
+}
+
+// Event Group (americano)
+export interface EventGroup {
+  id: string;
+  eventId: string;
+  groupNumber: number;
+  pairIds: string[];
   createdAt: Timestamp;
 }
 

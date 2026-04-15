@@ -69,3 +69,10 @@ export async function updatePair(pairId: string, player1Id: string, player1Name:
 export async function deletePair(pairId: string): Promise<void> {
   await deleteDoc(doc(db, 'event_pairs', pairId));
 }
+
+export async function deleteEventPairs(eventId: string): Promise<void> {
+  const pairs = await getEventPairs(eventId);
+  for (const p of pairs) {
+    await deleteDoc(doc(db, 'event_pairs', p.id));
+  }
+}

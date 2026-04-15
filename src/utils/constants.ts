@@ -1,4 +1,4 @@
-import type { EventStatus, PaymentStatus, PlayerPosition, TournamentType, UserRole } from '@/types';
+import type { AmericanoPhase, EventStatus, PaymentStatus, PlayerPosition, TournamentType, UserRole } from '@/types';
 
 export const ROLES: Record<UserRole, string> = {
   admin: 'Administrador',
@@ -29,6 +29,16 @@ export const PLAYER_POSITIONS: Record<PlayerPosition, string> = {
 export const TOURNAMENT_TYPES: Record<TournamentType, string> = {
   liga: 'Liga',
   libre: 'Libre',
+  americano: 'Americano',
+  rey: 'Rey de Cancha',
+};
+
+export const AMERICANO_PHASES: Record<AmericanoPhase, string> = {
+  setup: 'Configuración',
+  groups: 'Fase de Grupos',
+  repechaje: 'Repechaje',
+  elimination: 'Eliminatoria',
+  finished: 'Finalizado',
 };
 
 export const EVENT_STATUS_COLORS: Record<EventStatus, string> = {

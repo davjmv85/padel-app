@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Pencil, MoreVertical, Check, Clock, UserMinus, Trash2, ChevronLeft } from 'lucide-react';
+import { Pencil, MoreVertical, Check, Clock, UserMinus, Trash2, ChevronLeft, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { getEvent } from '../services/eventService';
+import { getEvent, updateAmericanoConfig, updateAmericanoPhase, updateReyConfig } from '../services/eventService';
 import { getEventRegistrations, cancelRegistration, updatePaymentStatus } from '@/features/registrations/services/registrationService';
-import { getEventPairs, createPair, deletePair } from '@/features/pairs/services/pairService';
-import { getEventMatches, createMatch, updateMatch, deleteMatch } from '@/features/matches/services/matchService';
+import { getEventPairs, createPair, deletePair, deleteEventPairs } from '@/features/pairs/services/pairService';
+import { getEventMatches, createMatch, updateMatch, deleteMatch, deleteEventMatches } from '@/features/matches/services/matchService';
+import { getEventGroups, deleteEventGroups } from '../services/groupService';
 import { recalculateRankings } from '@/features/ranking/services/rankingService';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -16,12 +17,18 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
-import { EVENT_STATUSES, EVENT_STATUS_COLORS, PAYMENT_STATUSES, PAYMENT_STATUS_COLORS, PLAYER_POSITIONS, TOURNAMENT_TYPES } from '@/utils/constants';
+import { EVENT_STATUSES, EVENT_STATUS_COLORS, PAYMENT_STATUSES, PAYMENT_STATUS_COLORS, PLAYER_POSITIONS, TOURNAMENT_TYPES, AMERICANO_PHASES } from '@/utils/constants';
 import { formatPrice, inverseScore, determineWinner, countSets } from '@/utils/format';
-import type { PadelEvent, Registration, EventPair, Match } from '@/types';
+import { AmericanoConfigTab } from '../components/AmericanoConfigTab';
+import { AmericanoGroupsTab } from '../components/AmericanoGroupsTab';
+import { AmericanoMatchesTab } from '../components/AmericanoMatchesTab';
+import { AmericanoStandingsTab } from '../components/AmericanoStandingsTab';
+import { ReyConfigTab } from '../components/ReyConfigTab';
+import { ReyRoundsTab } from '../components/ReyRoundsTab';
+import type { PadelEvent, Registration, EventPair, Match, EventGroup, AmericanoConfig, AmericanoPhase, ReyConfig } from '@/types';
 import toast from 'react-hot-toast';
 
-type Tab = 'registrations' | 'pairs' | 'matches' | 'standings';
+type Tab = 'registrations' | 'config' | 'pairs' | 'groups' | 'matches' | 'standings' | 'rounds';
 
 export function AdminEventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -31,8 +38,10 @@ export function AdminEventDetailPage() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [pairs, setPairs] = useState<EventPair[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [groups, setGroups] = useState<EventGroup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>('registrations');
+  const [activeTab, setActiveTab] = useState<Tab | null>('registrations');
+  const toggleTab = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
   // Modal states
   const [cancelRegId, setCancelRegId] = useState<string | null>(null);
@@ -81,16 +90,18 @@ export function AdminEventDetailPage() {
   const loadData = async () => {
     if (!eventId) return;
     try {
-      const [ev, regs, prs, mtchs] = await Promise.all([
+      const [ev, regs, prs, mtchs, grps] = await Promise.all([
         getEvent(eventId),
         getEventRegistrations(eventId),
         getEventPairs(eventId),
         getEventMatches(eventId),
+        getEventGroups(eventId),
       ]);
       setEvent(ev);
       setRegistrations(regs);
       setPairs(prs);
       setMatches(mtchs);
+      setGroups(grps);
     } finally {
       setLoading(false);
     }
@@ -100,12 +111,80 @@ export function AdminEventDetailPage() {
 
   if (loading || !event) return <Spinner />;
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'registrations', label: `Inscriptos (${registrations.length})` },
-    { key: 'pairs', label: `Parejas (${pairs.length})` },
-    { key: 'matches', label: `Partidos (${matches.length})` },
-    { key: 'standings', label: 'Posiciones' },
-  ];
+  const isAmericano = event.tournamentType === 'americano';
+  const isRey = event.tournamentType === 'rey';
+  const americanoPhase = event.americanoPhase || 'setup';
+  const americanoPairsLocked = isAmericano && americanoPhase !== 'setup';
+  const reyHasMatches = isRey && matches.length > 0;
+  const reyPairsLocked = isRey && reyHasMatches;
+
+  const tabs: { key: Tab; label: string }[] = isAmericano
+    ? [
+        { key: 'registrations', label: `Inscriptos (${registrations.length})` },
+        { key: 'config', label: 'Configuración' },
+        { key: 'pairs', label: `Parejas (${pairs.length})` },
+        { key: 'groups', label: `Grupos (${groups.length})` },
+        { key: 'matches', label: `Partidos (${matches.length})` },
+        { key: 'standings', label: 'Posiciones' },
+      ]
+    : isRey
+    ? [
+        { key: 'registrations', label: `Inscriptos (${registrations.length})` },
+        { key: 'config', label: 'Configuración' },
+        { key: 'pairs', label: `Parejas (${pairs.length})` },
+        { key: 'rounds', label: `Rondas (${new Set(matches.map(m => m.round)).size})` },
+        { key: 'standings', label: 'Posiciones' },
+      ]
+    : [
+        { key: 'registrations', label: `Inscriptos (${registrations.length})` },
+        { key: 'pairs', label: `Parejas (${pairs.length})` },
+        { key: 'matches', label: `Partidos (${matches.length})` },
+        { key: 'standings', label: 'Posiciones' },
+      ];
+
+  const handleSaveAmericanoConfig = async (config: AmericanoConfig) => {
+    if (!eventId) return;
+    await updateAmericanoConfig(eventId, config);
+    if (!event.americanoPhase) {
+      await updateAmericanoPhase(eventId, 'setup');
+    }
+    toast.success('Configuración guardada');
+    await loadData();
+  };
+
+  const handleAdvancePhase = async (phase: AmericanoPhase) => {
+    if (!eventId) return;
+    await updateAmericanoPhase(eventId, phase);
+    toast.success(`Fase avanzada: ${AMERICANO_PHASES[phase]}`);
+    await loadData();
+  };
+
+  const handleResetAmericano = async () => {
+    if (!eventId) return;
+    await deleteEventMatches(eventId);
+    await deleteEventGroups(eventId);
+    await deleteEventPairs(eventId);
+    await updateAmericanoPhase(eventId, 'setup');
+    await recalculateRankings();
+    toast.success('Americano reseteado. Todo vuelve a setup.');
+    await loadData();
+  };
+
+  const handleSaveReyConfig = async (config: ReyConfig) => {
+    if (!eventId) return;
+    await updateReyConfig(eventId, config);
+    toast.success('Configuración guardada');
+    await loadData();
+  };
+
+  const handleResetRey = async () => {
+    if (!eventId) return;
+    await deleteEventMatches(eventId);
+    await deleteEventPairs(eventId);
+    await recalculateRankings();
+    toast.success('Rey de cancha reseteado. Parejas y partidos eliminados.');
+    await loadData();
+  };
 
   const handleCancelReg = async () => {
     if (!cancelRegId || !eventId) return;
@@ -786,6 +865,9 @@ export function AdminEventDetailPage() {
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500 dark:text-gray-400">
             <span><span className="text-gray-400 dark:text-gray-500">Tipo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{TOURNAMENT_TYPES[event.tournamentType || 'liga']}</span></span>
+            {isAmericano && event.americanoPhase && (
+              <span><span className="text-gray-400 dark:text-gray-500">Fase:</span> <span className="font-medium text-blue-600 dark:text-blue-400">{AMERICANO_PHASES[event.americanoPhase]}</span></span>
+            )}
             <span><span className="text-gray-400 dark:text-gray-500">Cupo:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.currentRegistrations}/{event.maxCapacity}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Precio:</span> <span className="font-medium text-gray-700 dark:text-gray-300">${formatPrice(event.price)}</span></span>
             <span><span className="text-gray-400 dark:text-gray-500">Organizador:</span> <span className="font-medium text-gray-700 dark:text-gray-300">{event.createdByName || event.createdByEmail || event.createdBy}</span></span>
@@ -800,24 +882,8 @@ export function AdminEventDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-              activeTab === tab.key
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Registrations Tab (unified with payments) */}
+      {/* Accordion: Registrations */}
+      <AccordionHeader label={tabs.find(t => t.key === 'registrations')!.label} isOpen={activeTab === 'registrations'} onClick={() => toggleTab('registrations')} />
       {activeTab === 'registrations' && (
         <Card>
           <CardContent className="py-4">
@@ -862,9 +928,213 @@ export function AdminEventDetailPage() {
         </Card>
       )}
 
-      {/* Pairs Tab */}
+      {/* Rey de Cancha block */}
+      {isRey && (
+        <>
+          <AccordionHeader label={tabs.find(t => t.key === 'config')!.label} isOpen={activeTab === 'config'} onClick={() => toggleTab('config')} />
+          {activeTab === 'config' && (
+            <ReyConfigTab
+              event={event}
+              pairs={pairs}
+              hasMatches={reyHasMatches}
+              onSaveConfig={handleSaveReyConfig}
+              onReset={handleResetRey}
+              isFinished={isFinished}
+            />
+          )}
+
+          <AccordionHeader label={tabs.find(t => t.key === 'pairs')!.label} isOpen={activeTab === 'pairs'} onClick={() => toggleTab('pairs')} />
+          {activeTab === 'pairs' && (
+            <div>
+              {reyPairsLocked && (
+                <Card className="mb-4 border border-yellow-300 dark:border-yellow-700/50 bg-yellow-50 dark:bg-yellow-900/20">
+                  <CardContent className="py-3">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                      🔒 Las parejas están congeladas porque ya hay rondas generadas. Reseteá desde <strong>Configuración</strong> para modificarlas.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+              <div className="flex justify-end gap-2 mb-4 flex-wrap">
+                <Button variant="secondary" onClick={() => setDeleteAllPairsOpen(true)} disabled={pairs.length === 0 || isFinished || reyPairsLocked}>
+                  Borrar todas
+                </Button>
+                <Button variant="secondary" onClick={() => handleAutoPair()} loading={pairLoading} disabled={availablePlayers.length < 2 || isFinished || reyPairsLocked}>
+                  Auto-armar parejas
+                </Button>
+                <Button onClick={() => { setPairFormRound(null); setPairModalOpen(true); }} disabled={availablePlayers.length < 2 || isFinished || reyPairsLocked}>
+                  Crear pareja
+                </Button>
+              </div>
+              <Card>
+                <CardContent className="py-4">
+                  {pairs.length === 0 ? (
+                    <EmptyState title="Sin parejas" description="Armá las parejas para este evento" />
+                  ) : (
+                    <div className="space-y-2">
+                      {pairs.map((pair, idx) => {
+                        const p1Pos = registrations.find(r => r.userId === pair.player1Id)?.userPosition;
+                        const p2Pos = registrations.find(r => r.userId === pair.player2Id)?.userPosition;
+                        return (
+                          <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div>
+                              <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Pareja {idx + 1}:</span>{' '}
+                              <span className="font-medium">{pair.player1Name}</span>
+                              {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
+                              <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
+                              <span className="font-medium">{pair.player2Name}</span>
+                              {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)} disabled={isFinished || reyPairsLocked}>
+                              Eliminar
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <AccordionHeader label={tabs.find(t => t.key === 'rounds')!.label} isOpen={activeTab === 'rounds'} onClick={() => toggleTab('rounds')} />
+          {activeTab === 'rounds' && (
+            <ReyRoundsTab
+              event={event}
+              pairs={pairs}
+              matches={matches}
+              appUserId={appUser?.id || ''}
+              onReload={loadData}
+              isFinished={isFinished}
+            />
+          )}
+
+          <AccordionHeader label={tabs.find(t => t.key === 'standings')!.label} isOpen={activeTab === 'standings'} onClick={() => toggleTab('standings')} />
+        </>
+      )}
+
+      {/* Americano Config */}
+      {isAmericano && <AccordionHeader label={tabs.find(t => t.key === 'config')!.label} isOpen={activeTab === 'config'} onClick={() => toggleTab('config')} />}
+      {activeTab === 'config' && isAmericano && (
+        <AmericanoConfigTab
+          event={event}
+          registrations={registrations}
+          pairs={pairs}
+          onSaveConfig={handleSaveAmericanoConfig}
+          onAdvancePhase={handleAdvancePhase}
+          onReset={handleResetAmericano}
+          isFinished={isFinished}
+        />
+      )}
+
+      {/* Pairs (americano: header + content before Groups) */}
+      {isAmericano && <AccordionHeader label={tabs.find(t => t.key === 'pairs')!.label} isOpen={activeTab === 'pairs'} onClick={() => toggleTab('pairs')} />}
+      {activeTab === 'pairs' && isAmericano && (
+        <div>
+          {americanoPairsLocked && (
+            <Card className="mb-4 border border-yellow-300 dark:border-yellow-700/50 bg-yellow-50 dark:bg-yellow-900/20">
+              <CardContent className="py-3">
+                <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                  🔒 Las parejas están congeladas porque el torneo ya avanzó de fase <strong>setup</strong>. Para modificarlas, reseteá el americano desde <strong>Configuración</strong>.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          <div className="flex justify-end gap-2 mb-4 flex-wrap">
+            <Button variant="secondary" onClick={() => setDeleteAllPairsOpen(true)} disabled={pairs.length === 0 || isFinished || americanoPairsLocked}>
+              Borrar todas
+            </Button>
+            <Button variant="secondary" onClick={() => handleAutoPair()} loading={pairLoading} disabled={availablePlayers.length < 2 || isFinished || americanoPairsLocked}>
+              Auto-armar parejas
+            </Button>
+            <Button onClick={() => { setPairFormRound(null); setPairModalOpen(true); }} disabled={availablePlayers.length < 2 || isFinished || americanoPairsLocked}>
+              Crear pareja
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="py-4">
+              {pairs.length === 0 ? (
+                <EmptyState title="Sin parejas" description="Armá las parejas para este evento" />
+              ) : (
+                <div className="space-y-2">
+                  {pairs.map((pair, idx) => {
+                    const p1Pos = registrations.find(r => r.userId === pair.player1Id)?.userPosition;
+                    const p2Pos = registrations.find(r => r.userId === pair.player2Id)?.userPosition;
+                    return (
+                      <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div>
+                          <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Pareja {idx + 1}:</span>{' '}
+                          <span className="font-medium">{pair.player1Name}</span>
+                          {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
+                          <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
+                          <span className="font-medium">{pair.player2Name}</span>
+                          {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeletePair(pair.id)} disabled={isFinished || americanoPairsLocked}>
+                          Eliminar
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Americano Groups */}
+      {isAmericano && <AccordionHeader label={tabs.find(t => t.key === 'groups')!.label} isOpen={activeTab === 'groups'} onClick={() => toggleTab('groups')} />}
+      {activeTab === 'groups' && isAmericano && (
+        <AmericanoGroupsTab
+          event={event}
+          pairs={pairs}
+          groups={groups}
+          registrations={registrations}
+          onReload={loadData}
+          isFinished={isFinished}
+        />
+      )}
+
+      {/* Standings (before Matches in americano) */}
+      {isAmericano && (
+        <>
+          <AccordionHeader label={tabs.find(t => t.key === 'standings')!.label} isOpen={activeTab === 'standings'} onClick={() => toggleTab('standings')} />
+          {activeTab === 'standings' && (
+            <AmericanoStandingsTab
+              event={event}
+              pairs={pairs}
+              groups={groups}
+              matches={matches}
+            />
+          )}
+        </>
+      )}
+
+      {/* Matches */}
+      {!isRey && <AccordionHeader label={tabs.find(t => t.key === 'matches')!.label} isOpen={activeTab === 'matches'} onClick={() => toggleTab('matches')} />}
+      {activeTab === 'matches' && isAmericano && (
+        <AmericanoMatchesTab
+          event={event}
+          pairs={pairs}
+          groups={groups}
+          matches={matches}
+          onReload={loadData}
+          appUserId={appUser?.id || ''}
+          isFinished={isFinished}
+        />
+      )}
+
+      {/* Standings (non-americano render below, header shown here for non-americano, not rey) */}
+      {!isAmericano && !isRey && (
+        <AccordionHeader label={tabs.find(t => t.key === 'standings')!.label} isOpen={activeTab === 'standings'} onClick={() => toggleTab('standings')} />
+      )}
+
+      {/* Pairs (non-americano: header here; americano header is rendered above Groups; rey rendered in its own block) */}
+      {!isAmericano && !isRey && <AccordionHeader label={tabs.find(t => t.key === 'pairs')!.label} isOpen={activeTab === 'pairs'} onClick={() => toggleTab('pairs')} />}
       {/* Tournament builder (shared between liga and libre) */}
-      {activeTab === 'pairs' && (
+      {activeTab === 'pairs' && !isAmericano && !isRey && (
         <Card className="mb-4">
           <CardContent className="py-4">
             <div className="flex flex-wrap items-end gap-3">
@@ -907,7 +1177,7 @@ export function AdminEventDetailPage() {
         </Card>
       )}
 
-      {activeTab === 'pairs' && !isLibre && (
+      {activeTab === 'pairs' && !isLibre && !isAmericano && !isRey && (
         <div>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
             <Button variant="secondary" onClick={() => setDeleteAllPairsOpen(true)} disabled={pairs.length === 0 || isFinished}>
@@ -1034,8 +1304,7 @@ export function AdminEventDetailPage() {
         );
       })()}
 
-      {/* Matches Tab - Liga */}
-      {activeTab === 'matches' && !isLibre && (
+      {activeTab === 'matches' && !isLibre && !isAmericano && !isRey && (
         <div>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
             <Button variant="secondary" onClick={() => setDeleteAllMatchesOpen(true)} disabled={matches.length === 0 || isFinished}>
@@ -1108,8 +1377,7 @@ export function AdminEventDetailPage() {
         </div>
       )}
 
-      {/* Matches Tab - Libre (grouped by fecha, one section per fecha with pairs) */}
-      {activeTab === 'matches' && isLibre && (() => {
+      {activeTab === 'matches' && isLibre && !isAmericano && (() => {
         // Only show fechas that have pairs
         const dbRounds = Array.from(new Set(pairs.map(p => p.round).filter((r): r is number => r != null))).sort((a, b) => a - b);
         return (
@@ -1187,8 +1455,7 @@ export function AdminEventDetailPage() {
         );
       })()}
 
-      {/* Standings Tab */}
-      {activeTab === 'standings' && (
+      {activeTab === 'standings' && !isAmericano && (
         <Card>
           <CardContent className="py-4">
             {pairs.length === 0 ? (
@@ -1356,6 +1623,18 @@ export function AdminEventDetailPage() {
         loading={deleteAllPairsLoading}
       />
     </div>
+  );
+}
+
+function AccordionHeader({ label, isOpen, onClick }: { label: string; isOpen: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between px-4 py-3 mb-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+    >
+      {label}
+      <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+    </button>
   );
 }
 
