@@ -8,6 +8,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS, TOURNAMENT_TYPES } from '@/utils/constants';
 import { formatPrice } from '@/utils/format';
+import { ReyInfoButton } from '../components/ReyInfoButton';
 import type { PadelEvent } from '@/types';
 
 export function EventListPage() {
@@ -66,6 +67,7 @@ export function EventListPage() {
                     <div className="flex items-center gap-2">
                       <Trophy className="h-4 w-4" />
                       <span>{TOURNAMENT_TYPES[event.tournamentType || 'liga']}</span>
+                      {event.tournamentType === 'rey' && <ReyInfoButton />}
                     </div>
                     {(event.createdByName || event.createdByEmail) && (
                       <div className="flex items-center gap-2">

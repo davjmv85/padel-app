@@ -82,7 +82,7 @@ padel-app/
 │   │   ├── events/          → CRUD eventos, listados player/admin, detalle con tabs
 │   │   │   ├── services/groupService.ts → CRUD de event_groups (americano)
 │   │   │   ├── services/reyService.ts   → generación de rondas con rotación (rey)
-│   │   │   └── components/  → AmericanoConfigTab, AmericanoGroupsTab, AmericanoMatchesTab, AmericanoStandingsTab, ReyConfigTab, ReyRoundsTab
+│   │   │   └── components/  → AmericanoConfigTab, AmericanoGroupsTab, AmericanoMatchesTab, AmericanoStandingsTab, ReyConfigTab, ReyRoundsTab, ReyInfoButton
 │   │   ├── registrations/   → inscripción, cancelación, mis inscripciones
 │   │   ├── pairs/           → service para crear/eliminar parejas
 │   │   ├── matches/         → service para crear/editar/borrar partidos
@@ -587,6 +587,11 @@ Modalidad donde las parejas rotan entre canchas según ganen o pierdan cada rond
 **Posiciones**: se usa la tabla de standings por pareja compartida con liga (PJ, PG, PP, GG, GP, Game±, Pts).
 
 **Ranking global**: se alimenta como siempre — `recalculateRankings()` después de cada cambio en matches.
+
+**Ayuda para jugadores** (`ReyInfoButton`): icono ⓘ que despliega un modal con la explicación de la modalidad (cómo rotan las parejas, qué pasa si ganás/perdés, por qué se pueden repetir cruces, cuándo termina). Aparece:
+- En el listado de eventos disponibles (`EventListPage`), junto al tipo "Rey de Cancha".
+- En el detalle del evento para el jugador (`EventDetailPage`), en el header.
+En ambos casos el click en el ⓘ hace `stopPropagation` para no disparar el link al detalle.
 
 ### 8.15 Vista del jugador (read-only)
 

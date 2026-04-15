@@ -25,6 +25,7 @@ import { AmericanoGroupsTab } from '../components/AmericanoGroupsTab';
 import { AmericanoMatchesTab } from '../components/AmericanoMatchesTab';
 import { AmericanoStandingsTab } from '../components/AmericanoStandingsTab';
 import { ReyRoundsTab } from '../components/ReyRoundsTab';
+import { ReyInfoButton } from '../components/ReyInfoButton';
 import type { PadelEvent, Registration, EventPair, Match, EventGroup } from '@/types';
 
 type Tab = 'registrations' | 'pairs' | 'groups' | 'matches' | 'standings' | 'rounds';
@@ -254,6 +255,7 @@ export function EventDetailPage() {
             <span className="flex items-center gap-1.5">
               <Trophy className="h-4 w-4 text-gray-400 dark:text-gray-500" />
               {TOURNAMENT_TYPES[event.tournamentType || 'liga']}
+              {isRey && <ReyInfoButton />}
             </span>
             <span className="text-gray-300 dark:text-gray-600">|</span>
             <span className="flex items-center gap-1.5">
