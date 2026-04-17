@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { inverseScore, determineWinner, computePairRecords, pairRecordLabel } from '@/utils/format';
+import { primeKeyboard } from '@/utils/iosKeyboardPrimer';
 import { updateMatch, deleteMatch, clearMatchResult } from '@/features/matches/services/matchService';
 import { generateReyFirstRound, generateReyNextRound } from '../services/reyService';
 import { recalculateRankings } from '@/features/ranking/services/rankingService';
@@ -379,7 +380,7 @@ function ReyMatchKebab({
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
-          <button onClick={() => { onLoadResult(); setOpen(false); }}
+          <button onClick={() => { primeKeyboard(); onLoadResult(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
             <Pencil className="h-4 w-4" />
             {hasResult ? 'Editar resultado' : 'Cargar resultado'}

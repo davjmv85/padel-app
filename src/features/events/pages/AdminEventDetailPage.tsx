@@ -19,6 +19,7 @@ import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS, PAYMENT_STATUSES, PAYMENT_STATUS_COLORS, PLAYER_POSITIONS, TOURNAMENT_TYPES, AMERICANO_PHASES } from '@/utils/constants';
 import { formatPrice, inverseScore, determineWinner, countSets, computePairRecords, pairRecordLabel } from '@/utils/format';
+import { primeKeyboard } from '@/utils/iosKeyboardPrimer';
 import { AmericanoConfigTab } from '../components/AmericanoConfigTab';
 import { AmericanoGroupsTab } from '../components/AmericanoGroupsTab';
 import { AmericanoMatchesTab } from '../components/AmericanoMatchesTab';
@@ -1731,7 +1732,7 @@ function MatchKebab({
       {open && (
         <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
           <button
-            onClick={() => { onLoadResult(); setOpen(false); }}
+            onClick={() => { primeKeyboard(); onLoadResult(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
           >
             <Pencil className="h-4 w-4" />

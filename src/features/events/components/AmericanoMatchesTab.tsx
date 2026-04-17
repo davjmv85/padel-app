@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { generateGroupFixture, generateEliminationBracket, calculateGroupStandings, rankNonQualifiedPairs, getQualificationRoutes } from '@/utils/americano';
 import { inverseScore, determineWinner } from '@/utils/format';
+import { primeKeyboard } from '@/utils/iosKeyboardPrimer';
 import { createMatch, updateMatch, deleteMatch, clearMatchResult } from '@/features/matches/services/matchService';
 import { updateAmericanoPhase } from '../services/eventService';
 import { recalculateRankings } from '@/features/ranking/services/rankingService';
@@ -595,7 +596,7 @@ function MatchKebab({
       {open && (
         <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
           <button
-            onClick={() => { onLoadResult(); setOpen(false); }}
+            onClick={() => { primeKeyboard(); onLoadResult(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
           >
             <Pencil className="h-4 w-4" />

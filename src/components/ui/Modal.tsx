@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -9,6 +9,8 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children }: ModalProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -18,6 +20,20 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     return () => {
       document.body.style.overflow = '';
     };
+  }, [open]);
+
+  // Auto-focus first editable input/select/textarea when the modal opens.
+  // Deferred to escape any focus-stealing side effects of the click that opened it
+  // (e.g. a kebab menu closing and bouncing focus back to its trigger).
+  useEffect(() => {
+    if (!open) return;
+    const id = setTimeout(() => {
+      const el = contentRef.current?.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+        'input:not([readonly]):not([disabled]), textarea:not([readonly]):not([disabled]), select:not([disabled])'
+      );
+      el?.focus();
+    }, 50);
+    return () => clearTimeout(id);
   }, [open]);
 
   if (!open) return null;
@@ -32,7 +48,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="px-6 py-4">{children}</div>
+        <div ref={contentRef} className="px-6 py-4">{children}</div>
       </div>
     </div>
   );
