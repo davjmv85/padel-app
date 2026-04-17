@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Users, DollarSign, Trophy, User } from 'lucide-react';
+import { Calendar, MapPin, Users, DollarSign, Trophy } from 'lucide-react';
 import { getEvents } from '../services/eventService';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
