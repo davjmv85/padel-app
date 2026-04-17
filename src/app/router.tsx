@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { useAuth } from '@/hooks/useAuth';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
@@ -13,6 +14,11 @@ import { EventFormPage } from '@/features/events/pages/EventFormPage';
 import { MyRegistrationsPage } from '@/features/registrations/pages/MyRegistrationsPage';
 import { RankingPage } from '@/features/ranking/pages/RankingPage';
 import { CollaboratorsPage } from '@/features/collaborators/pages/CollaboratorsPage';
+
+function HomeRoute() {
+  const { isStaff } = useAuth();
+  return isStaff ? <Navigate to="/admin/events" replace /> : <EventListPage />;
+}
 
 export const router = createBrowserRouter([
   // Public routes
@@ -28,7 +34,8 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { path: '/', element: <EventListPage /> },
+      { path: '/', element: <HomeRoute /> },
+      { path: '/events', element: <EventListPage /> },
       { path: '/events/:eventId', element: <EventDetailPage /> },
       { path: '/my-registrations', element: <MyRegistrationsPage /> },
       { path: '/ranking', element: <RankingPage /> },

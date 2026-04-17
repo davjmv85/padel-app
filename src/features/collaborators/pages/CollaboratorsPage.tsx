@@ -73,7 +73,7 @@ export function CollaboratorsPage() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div>
       <h1 className="text-2xl font-bold mb-6">Colaboradores</h1>
 
       {/* Search */}

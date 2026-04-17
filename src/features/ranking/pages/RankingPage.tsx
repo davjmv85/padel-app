@@ -17,7 +17,7 @@ export function RankingPage() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div>
       <h1 className="text-2xl font-bold mb-6">Ranking</h1>
       <Card>
         <CardHeader>

@@ -19,28 +19,18 @@ export function validateReyConfig(config: ReyConfig, totalPairs: number): ReyVal
     errors.push('Agregá al menos una cancha');
     return { errors, warnings, summary: null };
   }
-  if (totalPairs < 2) {
-    warnings.push('Todavía no hay parejas armadas. Podés guardar la configuración igual.');
-  }
   if (!courts.find(c => c.id === winnersCourtId)) {
     errors.push('La cancha de referencia de ganadores no existe');
   }
   if (!courts.find(c => c.id === losersCourtId)) {
     errors.push('La cancha de referencia de perdedores no existe');
   }
-  if (winnersCourtId === losersCourtId && courts.length > 1) {
-    warnings.push('La cancha de ganadores y perdedores es la misma');
-  }
 
   const pairsPerRound = courts.length * 2;
   const restingPerRound = Math.max(0, totalPairs - pairsPerRound);
 
   if (totalPairs < pairsPerRound) {
-    warnings.push(`Hay ${totalPairs} parejas para ${pairsPerRound} lugares: ${pairsPerRound - totalPairs} cancha(s) quedan con hueco.`);
-  }
-
-  if (totalPairs % 2 !== 0) {
-    warnings.push('Cantidad de parejas impar: va a haber descanso rotativo.');
+    warnings.push(`Hay ${totalPairs} parejas para ${pairsPerRound} lugares.`);
   }
 
   if (errors.length > 0) return { errors, warnings, summary: null };

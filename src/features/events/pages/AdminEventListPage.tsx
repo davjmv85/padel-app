@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS, TOURNAMENT_TYPES } from '@/utils/constants';
 import toast from 'react-hot-toast';
 
@@ -71,22 +72,33 @@ export function AdminEventListPage() {
   const { isAdmin } = useAuth();
   const { events, loading, refresh } = useEvents(true);
   const navigate = useNavigate();
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteTarget) return;
+    if (deleteConfirmText.trim() !== deleteTarget.name.trim()) {
+      toast.error('El nombre no coincide');
+      return;
+    }
     setDeleting(true);
     try {
-      await deleteEventCascade(deleteId);
+      await deleteEventCascade(deleteTarget.id);
       toast.success('Evento eliminado (inscripciones, parejas, partidos y ranking actualizados)');
-      setDeleteId(null);
+      setDeleteTarget(null);
+      setDeleteConfirmText('');
       refresh();
     } catch {
       toast.error('Error al eliminar el evento');
     } finally {
       setDeleting(false);
     }
+  };
+
+  const closeDelete = () => {
+    setDeleteTarget(null);
+    setDeleteConfirmText('');
   };
 
   if (loading) return <Spinner />;
@@ -139,7 +151,7 @@ export function AdminEventListPage() {
                       eventId={event.id}
                       isAdmin={isAdmin}
                       isClosed={event.status === 'closed'}
-                      onDelete={() => setDeleteId(event.id)}
+                      onDelete={() => setDeleteTarget({ id: event.id, name: event.name })}
                     />
                   </div>
                 </div>
@@ -149,15 +161,32 @@ export function AdminEventListPage() {
         </div>
       )}
 
-      <ConfirmDialog
-        open={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        onConfirm={handleDelete}
-        title="Eliminar evento"
-        message="¿Estás seguro de que querés eliminar este evento? Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
-        loading={deleting}
-      />
+      <Modal open={!!deleteTarget} onClose={closeDelete} title="Eliminar evento">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Esta acción <strong>no se puede deshacer</strong>. Se van a borrar inscripciones, parejas, partidos y grupos del evento, y se recalculará el ranking global.
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Para confirmar, escribí el nombre del evento: <strong>{deleteTarget?.name}</strong>
+          </p>
+          <Input
+            placeholder={deleteTarget?.name || ''}
+            value={deleteConfirmText}
+            onChange={e => setDeleteConfirmText(e.target.value)}
+          />
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={closeDelete}>Cancelar</Button>
+            <Button
+              variant="danger"
+              onClick={handleDelete}
+              loading={deleting}
+              disabled={!deleteTarget || deleteConfirmText.trim() !== deleteTarget.name.trim()}
+            >
+              Eliminar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

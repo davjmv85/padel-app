@@ -4,7 +4,6 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { Select } from '@/components/ui/Select';
 import { validateReyConfig } from '@/utils/rey';
 import type { PadelEvent, EventPair, ReyConfig, ReyCourt } from '@/types';
 import toast from 'react-hot-toast';
@@ -33,8 +32,9 @@ export function ReyConfigTab({ event, pairs, hasMatches, onSaveConfig, onReset, 
   ]);
   const [winnersCourtId, setWinnersCourtId] = useState(existing?.winnersCourtId || '');
   const [losersCourtId, setLosersCourtId] = useState(existing?.losersCourtId || '');
-  const [seedMode, setSeedMode] = useState<'random' | 'manual'>(existing?.seedMode || 'random');
+  const [seedMode] = useState<'random' | 'manual'>(existing?.seedMode || 'random');
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const [resetOpen, setResetOpen] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
@@ -47,7 +47,7 @@ export function ReyConfigTab({ event, pairs, hasMatches, onSaveConfig, onReset, 
     if (!losersCourtId && sorted.length > 0) setLosersCourtId(sorted[sorted.length - 1].id);
   }, [courts, winnersCourtId, losersCourtId]);
 
-  const locked = hasMatches || isFinished || readOnly;
+  const hardLocked = hasMatches || isFinished || readOnly;
 
   const config: ReyConfig = {
     courts: [...courts].sort((a, b) => a.order - b.order),
@@ -56,6 +56,25 @@ export function ReyConfigTab({ event, pairs, hasMatches, onSaveConfig, onReset, 
     seedMode,
   };
   const validation = validateReyConfig(config, pairs.length);
+
+  const isSameConfig = (a: ReyConfig | undefined, b: ReyConfig): boolean => {
+    if (!a) return false;
+    if (a.winnersCourtId !== b.winnersCourtId) return false;
+    if (a.losersCourtId !== b.losersCourtId) return false;
+    if (a.seedMode !== b.seedMode) return false;
+    const ac = [...a.courts].sort((x, y) => x.order - y.order);
+    const bc = [...b.courts].sort((x, y) => x.order - y.order);
+    if (ac.length !== bc.length) return false;
+    for (let i = 0; i < ac.length; i++) {
+      if (ac[i].id !== bc[i].id) return false;
+      if (ac[i].name !== bc[i].name) return false;
+      if (ac[i].order !== bc[i].order) return false;
+    }
+    return true;
+  };
+  const alreadySaved = isSameConfig(existing, config);
+  const frozen = alreadySaved && !editing;
+  const locked = hardLocked || frozen;
 
   const addCourt = () => {
     const nextOrder = (courts.length > 0 ? Math.max(...courts.map(c => c.order)) : 0) + 1;
@@ -72,22 +91,17 @@ export function ReyConfigTab({ event, pairs, hasMatches, onSaveConfig, onReset, 
     setCourts(prev => prev.map(c => c.id === id ? { ...c, name } : c));
   };
 
-  const moveCourt = (id: string, direction: -1 | 1) => {
-    const sorted = [...courts].sort((a, b) => a.order - b.order);
-    const idx = sorted.findIndex(c => c.id === id);
-    const swapIdx = idx + direction;
-    if (idx < 0 || swapIdx < 0 || swapIdx >= sorted.length) return;
-    const tmp = sorted[idx].order;
-    sorted[idx].order = sorted[swapIdx].order;
-    sorted[swapIdx].order = tmp;
-    setCourts([...sorted]);
-  };
-
   const handleSave = async () => {
     if (validation.errors.length > 0) return;
+    if (alreadySaved) {
+      // No hay cambios: salir del modo edición sin escribir
+      setEditing(false);
+      return;
+    }
     setSaving(true);
     try {
       await onSaveConfig(config);
+      setEditing(false);
     } finally {
       setSaving(false);
     }
@@ -103,6 +117,7 @@ export function ReyConfigTab({ event, pairs, hasMatches, onSaveConfig, onReset, 
       await onReset();
       setResetOpen(false);
       setResetConfirmText('');
+      setEditing(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al resetear');
     } finally {
@@ -111,34 +126,60 @@ export function ReyConfigTab({ event, pairs, hasMatches, onSaveConfig, onReset, 
   };
 
   const sortedCourts = [...courts].sort((a, b) => a.order - b.order);
-  const courtOptions = sortedCourts.map(c => ({ value: c.id, label: c.name }));
 
   return (
     <div className="space-y-4">
       <Card>
         <CardContent className="py-4">
           <h3 className="font-semibold mb-3">Canchas</h3>
-          {locked && (
+          {hardLocked && (
             <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-3">
               🔒 Hay rondas generadas. Reseteá para cambiar las canchas.
             </p>
           )}
+          {frozen && !hardLocked && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              🔒 Configuración guardada. Para cambiarla, reseteá el Rey de Cancha.
+            </p>
+          )}
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Marcá con <span className="font-semibold text-green-600 dark:text-green-400">(+)</span> la cancha de ganadores y con <span className="font-semibold text-red-600 dark:text-red-400">(−)</span> la de perdedores.
+          </p>
           <div className="space-y-2">
-            {sortedCourts.map((c, i) => {
+            {sortedCourts.map((c) => {
               const isWinners = c.id === winnersCourtId;
               const isLosers = c.id === losersCourtId;
               return (
                 <div key={c.id} className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400 w-6">{i + 1}.</span>
                   <Input
                     value={c.name}
                     onChange={e => renameCourt(c.id, e.target.value)}
                     disabled={locked}
                   />
-                  {isWinners && <span className="text-sm font-semibold text-green-600 dark:text-green-400">(+)</span>}
-                  {isLosers && <span className="text-sm font-semibold text-red-600 dark:text-red-400">(−)</span>}
-                  <Button variant="ghost" size="sm" onClick={() => moveCourt(c.id, -1)} disabled={locked || i === 0}>↑</Button>
-                  <Button variant="ghost" size="sm" onClick={() => moveCourt(c.id, 1)} disabled={locked || i === sortedCourts.length - 1}>↓</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setWinnersCourtId(isWinners ? '' : c.id)}
+                    disabled={locked || isLosers}
+                    title="Marcar como cancha de ganadores"
+                    className={isWinners
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-semibold'
+                      : 'text-gray-400'}
+                  >
+                    (+)
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setLosersCourtId(isLosers ? '' : c.id)}
+                    disabled={locked || isWinners}
+                    title="Marcar como cancha de perdedores"
+                    className={isLosers
+                      ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-semibold'
+                      : 'text-gray-400'}
+                  >
+                    (−)
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => removeCourt(c.id)} disabled={locked || courts.length <= 1}>
                     <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>
@@ -149,40 +190,6 @@ export function ReyConfigTab({ event, pairs, hasMatches, onSaveConfig, onReset, 
           <Button variant="secondary" size="sm" onClick={addCourt} disabled={locked} className="mt-3">
             <Plus className="h-4 w-4 mr-1" /> Agregar cancha
           </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="py-4">
-          <h3 className="font-semibold mb-3">Parámetros</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Criterio de orden inicial</label>
-              <select
-                value={seedMode}
-                onChange={e => setSeedMode(e.target.value as 'random' | 'manual')}
-                disabled={locked}
-                className="block w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                <option value="random">Aleatorio</option>
-                <option value="manual">Manual (por cancha)</option>
-              </select>
-            </div>
-            <Select
-              label="Cancha de referencia de ganadores"
-              options={[{ value: '', label: '—' }, ...courtOptions]}
-              value={winnersCourtId}
-              onChange={e => setWinnersCourtId(e.target.value)}
-              disabled={locked}
-            />
-            <Select
-              label="Cancha de referencia de perdedores"
-              options={[{ value: '', label: '—' }, ...courtOptions]}
-              value={losersCourtId}
-              onChange={e => setLosersCourtId(e.target.value)}
-              disabled={locked}
-            />
-          </div>
 
           <div className="mt-4 space-y-2">
             {validation.errors.map((e, i) => (
@@ -202,15 +209,15 @@ export function ReyConfigTab({ event, pairs, hasMatches, onSaveConfig, onReset, 
 
           {!readOnly && (
             <div className="mt-4">
-              <Button onClick={handleSave} loading={saving} disabled={locked || validation.errors.length > 0}>
-                Guardar configuración
+              <Button onClick={handleSave} loading={saving} disabled={hardLocked || validation.errors.length > 0 || frozen}>
+                {frozen ? 'Configuración guardada' : 'Guardar configuración'}
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {!isFinished && !readOnly && (hasMatches || pairs.length > 0) && (
+      {!isFinished && !readOnly && (hasMatches || pairs.length > 0 || frozen) && (
         <Card className="border border-red-200 dark:border-red-900/50">
           <CardContent className="py-4">
             <h3 className="font-semibold text-red-700 dark:text-red-400 flex items-center gap-2 mb-2">

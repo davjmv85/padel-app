@@ -76,7 +76,7 @@ export function ProfilePage() {
   const positionOptions = Object.entries(PLAYER_POSITIONS).map(([value, label]) => ({ value, label }));
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div>
       <h1 className="text-2xl font-bold mb-6">Mi Perfil</h1>
       <Card>
         <CardHeader>

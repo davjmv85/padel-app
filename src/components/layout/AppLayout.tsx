@@ -35,7 +35,7 @@ export function AppLayout() {
 
   const staffNav: NavItem[] = [
     { label: 'Gestión Eventos', path: '/admin/events', icon: <Settings className="h-5 w-5" /> },
-    { label: 'Eventos', path: '/', icon: <Calendar className="h-5 w-5" /> },
+    { label: 'Eventos', path: '/events', icon: <Calendar className="h-5 w-5" /> },
     { label: 'Mis Inscripciones', path: '/my-registrations', icon: <ClipboardList className="h-5 w-5" /> },
     { label: 'Ranking', path: '/ranking', icon: <Trophy className="h-5 w-5" /> },
     { label: 'Mi Perfil', path: '/profile', icon: <User className="h-5 w-5" /> },
