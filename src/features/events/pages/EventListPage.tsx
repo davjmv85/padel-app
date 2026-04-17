@@ -69,12 +69,12 @@ export function EventListPage() {
                       <span>{TOURNAMENT_TYPES[event.tournamentType || 'liga']}</span>
                       {event.tournamentType === 'rey' && <ReyInfoButton />}
                     </div>
-                    {(event.createdByName || event.createdByEmail) && (
+                    {/* {(event.createdByName || event.createdByEmail) && (
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4" />
                         <span>Organizador: {event.createdByName || event.createdByEmail}</span>
                       </div>
-                    )}
+                    )} */}
                   </div>
                 </CardContent>
               </Card>
