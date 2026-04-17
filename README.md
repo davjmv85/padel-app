@@ -271,11 +271,13 @@ Lista de espera para eventos llenos.
 | Editar evento cerrado (`closed`) | ❌ | ❌ | ❌ |
 
 ### Página de inicio
-- **Admin / Colaborador**: `/admin/events` (Gestión de Eventos). No hay Dashboard.
-- **Jugador**: `/` (Eventos disponibles).
+- **Admin / Colaborador**: `/` redirige automáticamente a `/admin/events` (Gestión de Eventos). No hay Dashboard.
+- **Jugador**: `/` muestra los eventos disponibles (`EventListPage`).
 
 ### Un staff también puede jugar
 Admin y collaborator tienen en el sidebar las mismas rutas de player (Eventos, Mis Inscripciones, Perfil). Pueden inscribirse a los eventos, armar sus propias parejas, jugar, etc. — además de su rol de gestión.
+
+El link "Eventos" del sidebar staff apunta a `/events` (no a `/`, porque `/` los redirige al admin). Esa ruta sirve el mismo `EventListPage` que ven los players.
 
 ---
 
@@ -515,6 +517,8 @@ Tabla calculada en vivo desde el cliente en función de los matches del evento.
 
 Implementado en `src/lib/telegram.ts`, llamado fire-and-forget desde `registrationService.ts` — si falla la notificación, no rompe el flujo.
 
+**Múltiples destinatarios**: `VITE_TELEGRAM_CHAT_ID` acepta uno o varios chat IDs separados por coma (ej: `123,456,789`). El envío se hace en paralelo a todos; si uno falla solo se loguea warning para ese chat, el resto sigue. Cada destinatario tiene que haberle mandado al menos un mensaje al bot antes (Telegram rechaza "chat not found" si no hay conversación previa).
+
 ### 8.11 Seed de jugadores (admin)
 
 Página HTML standalone en `/seed.html` para que un admin pueda crear muchos jugadores de una:
@@ -560,12 +564,13 @@ Modalidad donde las parejas rotan entre canchas según ganen o pierdan cada rond
 **Accordions (orden)**: Inscriptos → Configuración → Parejas → Rondas → Posiciones.
 
 **Configuración** (`ReyConfigTab`):
-- **Canchas** ordenadas en una lista. Agregar/renombrar/eliminar/reordenar (↑↓). Una vez que hay rondas generadas, las canchas se bloquean.
-- **Cancha de referencia de ganadores**: hacia donde sube el ganador. Por defecto la primera cancha de la lista.
-- **Cancha de referencia de perdedores**: hacia donde baja el perdedor. Por defecto la última.
-- **Modo de seed inicial**: `random` (reparte al azar) o `manual` (admin asigna pareja-a-cancha con selects).
-- **Reset completo**: borra parejas, partidos y recalcula ranking. Confirmación por nombre de evento. Conserva la config.
-- La config se puede guardar sin tener parejas todavía (muestra warning).
+- **Canchas** en una lista. Agregar/renombrar/eliminar. Cada fila tiene dos toggles inline **(+)** / **(−)** para marcarla como cancha de ganadores o de perdedores (colores verde/rojo cuando están activos). No hay flechas de reordenar; el orden es el de creación.
+- **Cancha de ganadores (+)**: hacia donde sube el ganador. Por defecto la primera cancha creada.
+- **Cancha de perdedores (−)**: hacia donde baja el perdedor. Por defecto la última.
+- **Seed mode**: default `random` (ya no se elige desde la UI, queda fijo).
+- **Estado frozen**: una vez guardada la config, los inputs y el botón "Configuración guardada" quedan grisados. La **única vía de desbloqueo es Resetear** el Rey de Cancha (zona de peligro, que aparece tan pronto hay config guardada). Después del reset se entra automáticamente en modo edición.
+- **Reset completo**: borra parejas y partidos, recalcula ranking. Confirmación por nombre de evento. Conserva la config (pero la deja editable).
+- La config se puede guardar sin tener parejas todavía (muestra warning `Hay X parejas para Y lugares.`).
 
 **Parejas**: reutiliza el flujo de liga (parejas fijas, auto-armar priorizando posición). Cuando ya hay rondas generadas, las parejas quedan congeladas con banner amarillo.
 
@@ -618,7 +623,7 @@ El accordion de **Configuración** no se muestra para el jugador (es configuraci
 - **Formato de precio** con separador de miles (22.000)
 - **Fechas en es-AR**
 - **Confirmaciones** para acciones destructivas (eliminar evento, borrar todo)
-- **Reset con nombre**: las acciones de reset de americano y rey piden escribir el nombre exacto del evento (no un simple "sí/no")
+- **Confirmación por nombre**: eliminar evento, reset de americano y reset de rey piden escribir el nombre exacto del evento (no un simple "sí/no"). El botón de confirmar queda deshabilitado hasta que el texto coincida.
 - **Toast notifications** para feedback de acciones
 - **Header mobile sticky** (`sticky top-0 z-30`) en toda la app
 - **Accordion spacing**: `mt-4` por header para que el contenido abierto no quede pegado al siguiente accordion

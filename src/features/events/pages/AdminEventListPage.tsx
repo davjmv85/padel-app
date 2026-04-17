@@ -106,7 +106,7 @@ export function AdminEventListPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Eventos</h1>
+        <h1 className="text-2xl font-bold">Gestión Eventos</h1>
         <Button onClick={() => navigate('/admin/events/new')}>
           <Plus className="h-4 w-4 mr-2" />
           Nuevo evento
