@@ -22,6 +22,13 @@ export const profileSchema = z.object({
   firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
   nickname: z.string().optional(),
+  telegramUsername: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val?.trim() || /^@?[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(val.trim()),
+      'Usuario de Telegram inválido (5-32 caracteres, debe empezar con letra)'
+    ),
   position: z.enum(['drive', 'reves', 'indistinto']),
 });
 

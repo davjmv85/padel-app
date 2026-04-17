@@ -50,6 +50,7 @@ export interface AppUser {
   firstName: string;
   lastName: string;
   nickname?: string;
+  telegramUsername?: string;
   position: PlayerPosition;
   role: UserRole;
   photoURL?: string;
@@ -178,6 +179,7 @@ export interface ProfileFormData {
   firstName: string;
   lastName: string;
   nickname?: string;
+  telegramUsername?: string;
   position: PlayerPosition;
 }
 

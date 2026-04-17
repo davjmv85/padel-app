@@ -10,6 +10,7 @@ import {
   X,
   ClipboardList,
   Settings,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -35,7 +36,7 @@ export function AppLayout() {
 
   const staffNav: NavItem[] = [
     { label: 'Gestión Eventos', path: '/admin/events', icon: <Settings className="h-5 w-5" /> },
-    { label: 'Jugadores registrados', path: '/admin/players', icon: <UserCircle className="h-5 w-5" /> },
+    { label: 'Jugadores Registrados', path: '/admin/players', icon: <UserCircle className="h-5 w-5" /> },
     { label: 'Eventos', path: '/events', icon: <Calendar className="h-5 w-5" /> },
     { label: 'Mis Inscripciones', path: '/my-registrations', icon: <ClipboardList className="h-5 w-5" /> },
     { label: 'Ranking', path: '/ranking', icon: <Trophy className="h-5 w-5" /> },
@@ -152,6 +153,16 @@ function SidebarContent({
         })}
       </nav>
       <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-4">
+        <a
+          href="https://t.me/+9vtip5SVhMJmMDEx"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onClose}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+        >
+          <Send className="h-5 w-5" />
+          Unite al grupo de Telegram
+        </a>
         <ThemeToggle />
         <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 truncate">{userName}</div>
         <button

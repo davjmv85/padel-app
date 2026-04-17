@@ -25,6 +25,7 @@ export function ProfilePage() {
       firstName: appUser?.firstName || '',
       lastName: appUser?.lastName || '',
       nickname: appUser?.nickname || '',
+      telegramUsername: appUser?.telegramUsername || '',
       position: appUser?.position || 'indistinto',
     },
   });
@@ -34,11 +35,13 @@ export function ProfilePage() {
     setLoading(true);
     try {
       const nickname = data.nickname?.trim() || null;
+      const telegramUsername = data.telegramUsername?.trim().replace(/^@/, '') || null;
       const newDisplayName = buildDisplayName(data.firstName, data.lastName, data.nickname);
       await updateDoc(doc(db, 'users', appUser.id), {
         firstName: data.firstName,
         lastName: data.lastName,
         nickname,
+        telegramUsername,
         position: data.position,
         displayName: newDisplayName,
         updatedAt: serverTimestamp(),
@@ -95,7 +98,24 @@ export function ProfilePage() {
               <Input label="Nombre" {...register('firstName')} error={errors.firstName?.message} />
               <Input label="Apellido" {...register('lastName')} error={errors.lastName?.message} />
             </div>
-            <Input label="Apodo (opcional)" placeholder="Se usa como nombre visible si lo completás" {...register('nickname')} error={errors.nickname?.message} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input label="Apodo (opcional)" placeholder="Se usa como nombre visible" {...register('nickname')} error={errors.nickname?.message} />
+              <Input
+                label="Usuario de Telegram (opcional)"
+                placeholder="@tuusuario"
+                {...register('telegramUsername')}
+                error={errors.telegramUsername?.message}
+              />
+            </div>
+            <a
+              href="https://t.me/+9vtip5SVhMJmMDEx"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-900/30 transition-colors"
+            >
+              <span>📲 ¡Unite al grupo de Telegram y enterate de las novedades!</span>
+              <span className="shrink-0 font-medium underline">Unirme</span>
+            </a>
             <Select label="Posición" options={positionOptions} {...register('position')} error={errors.position?.message} />
             <Button type="submit" loading={loading}>
               Guardar cambios

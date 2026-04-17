@@ -87,7 +87,7 @@ export function PlayersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Jugadores registrados</h1>
+      <h1 className="text-2xl font-bold mb-6">Jugadores Registrados</h1>
 
       <Card className="mb-4">
         <CardHeader>
@@ -123,7 +123,7 @@ export function PlayersPage() {
                 const showRoleButton = isAdmin && u.role !== 'admin';
                 const isCollab = u.role === 'collaborator';
                 return (
-                  <div key={u.id} className="flex items-start justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div key={u.id} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium truncate">{u.displayName || '—'}</p>
@@ -136,7 +136,7 @@ export function PlayersPage() {
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{u.email}</p>
                     </div>
-                    <div className="shrink-0 flex items-center gap-2">
+                    <div className="shrink-0 flex items-center justify-between gap-2 sm:justify-start">
                       <Badge className={ROLE_BADGE[u.role] || ROLE_BADGE.player}>
                         {ROLE_LABEL[u.role] || u.role}
                       </Badge>
