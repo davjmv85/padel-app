@@ -14,6 +14,7 @@ import { EventFormPage } from '@/features/events/pages/EventFormPage';
 import { MyRegistrationsPage } from '@/features/registrations/pages/MyRegistrationsPage';
 import { RankingPage } from '@/features/ranking/pages/RankingPage';
 import { CollaboratorsPage } from '@/features/collaborators/pages/CollaboratorsPage';
+import { PlayersPage } from '@/features/players/pages/PlayersPage';
 
 function HomeRoute() {
   const { isStaff } = useAuth();
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
       { path: '/admin/events/new', element: <EventFormPage /> },
       { path: '/admin/events/:eventId', element: <AdminEventDetailPage /> },
       { path: '/admin/events/:eventId/edit', element: <EventFormPage /> },
+      { path: '/admin/players', element: <PlayersPage /> },
     ],
   },
 
