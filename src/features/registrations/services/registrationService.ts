@@ -11,7 +11,7 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { sendTelegramMessage } from '@/lib/telegram';
+import { sendTelegramMessage, formatMsg } from '@/lib/telegram';
 import type { Registration, AppUser } from '@/types';
 
 const registrationsRef = collection(db, 'registrations');
@@ -58,9 +58,14 @@ export async function registerForEvent(eventId: string, user: AppUser): Promise<
     });
   });
 
-  // Fire-and-forget notification
+  // Fire-and-forget notification (admin)
   sendTelegramMessage(
-    `✅ <b>Nueva inscripción</b>\n\n👤 ${user.displayName}\n🏆 ${eventName}\n👥 Cupo: ${newCount}/${maxCapacity}`
+    formatMsg({
+      emoji: '✅',
+      title: 'Nueva inscripción',
+      body: `👤 ${user.displayName}\n🏆 ${eventName}\n👥 Cupo: ${newCount}/${maxCapacity}`,
+    }),
+    'admin'
   );
 }
 
@@ -97,10 +102,49 @@ export async function cancelRegistration(registrationId: string, eventId: string
     });
   });
 
-  // Fire-and-forget notification
+  // Fire-and-forget notification (admin)
   sendTelegramMessage(
-    `❌ <b>Baja de inscripción</b>\n\n👤 ${userName}\n🏆 ${eventName}\n👥 Cupo: ${newCount}/${maxCapacity}`
+    formatMsg({
+      emoji: '❌',
+      title: 'Baja de inscripción',
+      body: `👤 ${userName}\n🏆 ${eventName}\n👥 Cupo: ${newCount}/${maxCapacity}`,
+    }),
+    'admin'
   );
+
+  // Si se liberó cupo y hay waitlist, avisar al grupo (fire-and-forget)
+  void notifyWaitlistOnSpotFreed(eventId, eventName, newCount, maxCapacity);
+}
+
+async function notifyWaitlistOnSpotFreed(
+  eventId: string,
+  eventName: string,
+  currentCount: number,
+  maxCapacity: number
+): Promise<void> {
+  try {
+    const waitlistRef = collection(db, 'waitlist');
+    const q = query(waitlistRef, where('eventId', '==', eventId), where('notified', '==', false));
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+
+    sendTelegramMessage(
+      formatMsg({
+        emoji: '🎟️',
+        title: 'Se liberó cupo',
+        body: `🏆 ${eventName}\n👥 Cupo: ${currentCount}/${maxCapacity}\n\n¡El primero que se anote se lleva el lugar!`,
+      }),
+      'group'
+    );
+
+    await Promise.all(
+      snap.docs.map((d) =>
+        updateDoc(doc(db, 'waitlist', d.id), { notified: true, notifiedAt: serverTimestamp() })
+      )
+    );
+  } catch (err) {
+    console.warn('[waitlist] notify failed:', err);
+  }
 }
 
 export async function getEventRegistrations(eventId: string): Promise<Registration[]> {

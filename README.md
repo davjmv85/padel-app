@@ -523,13 +523,21 @@ Antes había una pantalla separada `/admin/collaborators` (solo admin). Se elimi
 
 **Opción simple MVP**: el token del bot vive en `.env` (queda en el bundle, trade-off aceptado).
 
+**Dos targets** (mismo bot, dos grupos):
+- `admin` → `VITE_TELEGRAM_CHAT_ID_ADMIN` — chat interno del staff. Ruido operativo: inscripciones, bajas, pagos.
+- `group` → `VITE_TELEGRAM_CHAT_ID_GROUP` — grupo de jugadores ([link de invitación](https://t.me/+9vtip5SVhMJmMDEx)). Solo cosas publicables.
+
 **Cuándo se envían**:
-- Jugador se inscribe → mensaje con nombre, evento y cupo actualizado
-- Jugador cancela → mensaje de baja con nombre, evento y cupo
+- **Admin**:
+  - Jugador se inscribe → nombre, evento y cupo actualizado
+  - Jugador cancela → nombre, evento y cupo actualizado
+- **Grupo**:
+  - Evento pasa a `published` (o se crea directamente en `published`) → nombre, fecha, hora, lugar, cupo, precio
+  - Se libera cupo en un evento con waitlist → dispara al cancelar una inscripción, si hay entradas `notified:false` en `waitlist`. Marca esas entradas como `notified:true` después.
 
-Implementado en `src/lib/telegram.ts`, llamado fire-and-forget desde `registrationService.ts` — si falla la notificación, no rompe el flujo.
+Implementado en `src/lib/telegram.ts` (helper `formatMsg` para templates unificados + `sendTelegramMessage(msg, target)`), llamado fire-and-forget desde los services — si falla la notificación, no rompe el flujo.
 
-**Múltiples destinatarios**: `VITE_TELEGRAM_CHAT_ID` acepta uno o varios chat IDs separados por coma (ej: `123,456,789`). El envío se hace en paralelo a todos; si uno falla solo se loguea warning para ese chat, el resto sigue. Cada destinatario tiene que haberle mandado al menos un mensaje al bot antes (Telegram rechaza "chat not found" si no hay conversación previa).
+**Múltiples destinatarios**: cada una de las dos env vars acepta uno o varios chat IDs separados por coma (ej: `123,456,789`). El envío se hace en paralelo a todos; si uno falla solo se loguea warning para ese chat, el resto sigue. Para chats privados (DM), el destinatario tiene que haberle mandado al menos un mensaje al bot antes (Telegram rechaza "chat not found" si no hay conversación previa). Para grupos, el bot debe estar agregado como miembro.
 
 ### 8.11 Seed de jugadores (admin)
 
@@ -689,7 +697,8 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
 VITE_USE_EMULATORS=false
 VITE_TELEGRAM_BOT_TOKEN=...
-VITE_TELEGRAM_CHAT_ID=...  # uno o varios IDs separados por coma: 123,456,789
+VITE_TELEGRAM_CHAT_ID_ADMIN=...  # staff/admin: uno o varios IDs separados por coma
+VITE_TELEGRAM_CHAT_ID_GROUP=...  # jugadores: uno o varios IDs separados por coma
 ```
 
 ### Crear un usuario admin manualmente

@@ -1,15 +1,30 @@
 /**
  * Send a message to Telegram via bot API.
  * Token and chat IDs are stored in env vars.
- * VITE_TELEGRAM_CHAT_ID puede ser un único ID o varios separados por coma.
- * Fails silently to avoid breaking the main flow.
+ *
+ * Targets:
+ *  - 'admin' → VITE_TELEGRAM_CHAT_ID_ADMIN (staff interno: inscripciones, bajas, pagos)
+ *  - 'group' → VITE_TELEGRAM_CHAT_ID_GROUP (jugadores: eventos publicados, cupos, etc.)
+ *
+ * Cada var acepta uno o varios IDs separados por coma. Fire-and-forget: si falla,
+ * loguea warning y sigue sin romper el flujo principal.
  */
-export async function sendTelegramMessage(message: string): Promise<void> {
+
+export type TelegramTarget = 'admin' | 'group';
+
+export function formatMsg({ emoji, title, body }: { emoji: string; title: string; body: string }): string {
+  return `${emoji} <b>${title}</b>\n\n${body}`;
+}
+
+export async function sendTelegramMessage(message: string, target: TelegramTarget = 'admin'): Promise<void> {
   const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
-  const chatIdRaw = import.meta.env.VITE_TELEGRAM_CHAT_ID;
+  const chatIdRaw =
+    target === 'group'
+      ? import.meta.env.VITE_TELEGRAM_CHAT_ID_GROUP
+      : import.meta.env.VITE_TELEGRAM_CHAT_ID_ADMIN;
 
   if (!token || !chatIdRaw) {
-    console.warn('Telegram bot not configured');
+    console.warn(`Telegram bot not configured for target "${target}"`);
     return;
   }
 
@@ -19,7 +34,7 @@ export async function sendTelegramMessage(message: string): Promise<void> {
     .filter(Boolean);
 
   if (chatIds.length === 0) {
-    console.warn('Telegram bot not configured');
+    console.warn(`Telegram bot not configured for target "${target}"`);
     return;
   }
 
@@ -38,10 +53,10 @@ export async function sendTelegramMessage(message: string): Promise<void> {
           }),
         });
         if (!res.ok) {
-          console.warn(`Telegram send failed (chat ${chatId}):`, await res.text());
+          console.warn(`Telegram send failed (chat ${chatId}, target ${target}):`, await res.text());
         }
       } catch (err) {
-        console.warn(`Telegram error (chat ${chatId}):`, err);
+        console.warn(`Telegram error (chat ${chatId}, target ${target}):`, err);
       }
     })
   );

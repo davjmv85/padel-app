@@ -13,9 +13,24 @@ import {
   type Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { sendTelegramMessage, formatMsg } from '@/lib/telegram';
+import { formatPrice } from '@/utils/format';
 import type { PadelEvent, EventFormData } from '@/types';
 
 const eventsRef = collection(db, 'events');
+
+function buildPublishedMsg(ev: { name: string; location: string; date: string; time: string; maxCapacity: number; price: number; description?: string }): string {
+  const dateStr = new Date(ev.date + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const lines = [
+    `🏆 ${ev.name}`,
+    `📅 ${dateStr} · ${ev.time}`,
+    `📍 ${ev.location}`,
+    `👥 Cupo: ${ev.maxCapacity}`,
+    `💵 $${formatPrice(ev.price)}`,
+  ];
+  if (ev.description?.trim()) lines.push(`\n${ev.description.trim()}`);
+  return formatMsg({ emoji: '🆕', title: 'Nuevo evento publicado', body: lines.join('\n') });
+}
 
 export async function createEvent(data: EventFormData, userId: string, userEmail: string, userName: string): Promise<string> {
   const docRef = await addDoc(eventsRef, {
@@ -29,15 +44,45 @@ export async function createEvent(data: EventFormData, userId: string, userEmail
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+
+  if (data.status === 'published') {
+    sendTelegramMessage(buildPublishedMsg(data), 'group');
+  }
+
   return docRef.id;
 }
 
 export async function updateEvent(eventId: string, data: Partial<EventFormData>): Promise<void> {
+  const eventRef = doc(db, 'events', eventId);
+  const prevSnap = await getDoc(eventRef);
+  const prevStatus = prevSnap.exists() ? (prevSnap.data().status as string | undefined) : undefined;
+
   const updateData: Record<string, unknown> = { ...data, updatedAt: serverTimestamp() };
   if (data.date) {
     updateData.date = new Date(data.date + 'T12:00:00');
   }
-  await updateDoc(doc(db, 'events', eventId), updateData);
+  await updateDoc(eventRef, updateData);
+
+  const justPublished = data.status === 'published' && prevStatus !== 'published';
+  if (justPublished && prevSnap.exists()) {
+    const prev = prevSnap.data() as PadelEvent;
+    const prevDateStr =
+      prev.date && typeof (prev.date as unknown as { toDate?: () => Date }).toDate === 'function'
+        ? (prev.date as unknown as { toDate: () => Date }).toDate().toISOString().slice(0, 10)
+        : '';
+    sendTelegramMessage(
+      buildPublishedMsg({
+        name: data.name ?? prev.name,
+        location: data.location ?? prev.location,
+        date: data.date ?? prevDateStr,
+        time: data.time ?? prev.time,
+        maxCapacity: data.maxCapacity ?? prev.maxCapacity,
+        price: data.price ?? prev.price,
+        description: data.description ?? prev.description,
+      }),
+      'group'
+    );
+  }
 }
 
 export async function updateAmericanoConfig(eventId: string, config: import('@/types').AmericanoConfig): Promise<void> {
