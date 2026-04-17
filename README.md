@@ -357,7 +357,7 @@ match /rankings/{rankingId} {
 - **Login con Google** (popup)
 - **Recuperar contraseña** (Firebase envía email en español)
 - **Verificación de email obligatoria** antes de acceder a la app (excepto Google y adminCreated)
-- **Perfil editable**: nombre, apellido, posición preferida
+- **Perfil editable**: nombre, apellido, apodo opcional, usuario de Telegram opcional, posición preferida. Al guardar, el `displayName` se propaga en paralelo a las colecciones que lo cachean (desnormalización): `registrations` (propias activas), `event_pairs` (slot `player1Name` / `player2Name` según corresponda) y `rankings/{uid}.userName` (solo si el doc existe). Las firestore rules permiten owner-updates-own-cached-name solo sobre esos campos; el resto sigue bloqueado para no-staff.
 - **Desvinculación automática** del provider password cuando se loguea con Google
 - **Rol visible** en el perfil con badge
 
@@ -533,7 +533,7 @@ Antes había una pantalla separada `/admin/collaborators` (solo admin). Se elimi
   - Jugador cancela → nombre, evento y cupo actualizado
 - **Grupo**:
   - Evento pasa a `published` (o se crea directamente en `published`) → nombre, fecha, hora, lugar, cupo, precio
-  - Se libera cupo en un evento con waitlist → dispara al cancelar una inscripción, si hay entradas `notified:false` en `waitlist`. Marca esas entradas como `notified:true` después.
+  - Se libera cupo en un evento con waitlist → dispara al cancelar una inscripción, si hay entradas `notified:false` en `waitlist`. Marca esas entradas como `notified:true` después. La rule de `waitlist` permite a cualquier autenticado actualizar **solo** `notified` + `notifiedAt` (necesario porque el que cancela no es el mismo que está en la waitlist); sin esto, el flag quedaba en `false` y cada baja subsecuente duplicaba la notificación.
 
 Implementado en `src/lib/telegram.ts` (helper `formatMsg` para templates unificados + `sendTelegramMessage(msg, target)`), llamado fire-and-forget desde los services — si falla la notificación, no rompe el flujo.
 

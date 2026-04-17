@@ -54,7 +54,15 @@ service cloud.firestore {
     // Event pairs collection
     match /event_pairs/{pairId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isStaff();
+      allow create, delete: if isStaff();
+      // Staff: full update. Owner: only their cached name in their slot.
+      allow update: if isStaff() ||
+        (isAuthenticated() &&
+         resource.data.player1Id == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['player1Name', 'updatedAt'])) ||
+        (isAuthenticated() &&
+         resource.data.player2Id == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['player2Name', 'updatedAt']));
     }
 
     // Matches collection
@@ -66,7 +74,12 @@ service cloud.firestore {
     // Rankings collection
     match /rankings/{rankingId} {
       allow read: if isAuthenticated();
-      allow write: if isStaff();
+      // Staff: full write. Owner: only their own userName on their ranking doc.
+      allow create, delete: if isStaff();
+      allow update: if isStaff() ||
+        (isAuthenticated() &&
+         isOwner(rankingId) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userName', 'updatedAt']));
     }
 
     // Event groups collection (americano)
@@ -79,7 +92,10 @@ service cloud.firestore {
     match /waitlist/{waitlistId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if false;
+      // Any auth user may flip notified after a spot frees up (runs from the client
+      // that cancels the registration, not necessarily the waitlisted user).
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notified', 'notifiedAt']);
       allow delete: if isStaff();
     }
   }

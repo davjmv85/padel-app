@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { collection, doc, updateDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, updateDoc, serverTimestamp, query, where, getDocs, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
@@ -47,26 +47,80 @@ export function ProfilePage() {
         updatedAt: serverTimestamp(),
       });
 
-      // Update cached userName in active registrations so the change shows up in events
-      try {
-        const regQuery = query(
-          collection(db, 'registrations'),
-          where('userId', '==', appUser.id),
-          where('status', '==', 'active')
-        );
-        const regSnap = await getDocs(regQuery);
-        await Promise.all(
-          regSnap.docs.map(d =>
-            updateDoc(d.ref, {
-              userName: newDisplayName,
-              userPosition: data.position,
-              updatedAt: serverTimestamp(),
-            })
-          )
-        );
-      } catch (err) {
-        console.error('Error updating registrations cache:', err);
-      }
+      // Propagate cached userName/displayName to dependent collections in parallel
+      await Promise.all([
+        // registrations
+        (async () => {
+          try {
+            const regSnap = await getDocs(
+              query(
+                collection(db, 'registrations'),
+                where('userId', '==', appUser.id),
+                where('status', '==', 'active')
+              )
+            );
+            await Promise.all(
+              regSnap.docs.map((d) =>
+                updateDoc(d.ref, {
+                  userName: newDisplayName,
+                  userPosition: data.position,
+                  updatedAt: serverTimestamp(),
+                })
+              )
+            );
+          } catch (err) {
+            console.error('Error updating registrations cache:', err);
+          }
+        })(),
+
+        // event_pairs (player1 slot)
+        (async () => {
+          try {
+            const snap = await getDocs(
+              query(collection(db, 'event_pairs'), where('player1Id', '==', appUser.id))
+            );
+            await Promise.all(
+              snap.docs.map((d) =>
+                updateDoc(d.ref, { player1Name: newDisplayName, updatedAt: serverTimestamp() })
+              )
+            );
+          } catch (err) {
+            console.error('Error updating pairs (player1) cache:', err);
+          }
+        })(),
+
+        // event_pairs (player2 slot)
+        (async () => {
+          try {
+            const snap = await getDocs(
+              query(collection(db, 'event_pairs'), where('player2Id', '==', appUser.id))
+            );
+            await Promise.all(
+              snap.docs.map((d) =>
+                updateDoc(d.ref, { player2Name: newDisplayName, updatedAt: serverTimestamp() })
+              )
+            );
+          } catch (err) {
+            console.error('Error updating pairs (player2) cache:', err);
+          }
+        })(),
+
+        // rankings (only if the user has a ranking doc)
+        (async () => {
+          try {
+            const rankRef = doc(db, 'rankings', appUser.id);
+            const rankSnap = await getDoc(rankRef);
+            if (rankSnap.exists()) {
+              await updateDoc(rankRef, {
+                userName: newDisplayName,
+                updatedAt: serverTimestamp(),
+              });
+            }
+          } catch (err) {
+            console.error('Error updating ranking cache:', err);
+          }
+        })(),
+      ]);
 
       toast.success('Perfil actualizado');
     } catch {
