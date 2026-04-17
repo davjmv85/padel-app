@@ -87,7 +87,7 @@ padel-app/
 │   │   ├── pairs/           → service para crear/eliminar parejas
 │   │   ├── matches/         → service para crear/editar/borrar partidos
 │   │   ├── ranking/         → ranking global + recálculo desde cliente
-│   │   └── collaborators/   → asignar/revocar rol collaborator
+│   │   └── players/         → listado de usuarios registrados + asignar/revocar rol collaborator (admin only)
 │   ├── hooks/
 │   │   ├── useAuth.tsx      → context + hook de auth
 │   │   └── useTheme.tsx     → context + hook de dark mode
@@ -263,7 +263,8 @@ Lista de espera para eventos llenos.
 | Dar de baja jugadores | ✅ | ✅ | Solo propia |
 | Armar parejas | ✅ | ✅ | ❌ |
 | Crear partidos y cargar resultados | ✅ | ✅ | ❌ |
-| Gestionar colaboradores | ✅ | ❌ | ❌ |
+| Ver "Jugadores registrados" | ✅ | ✅ | ❌ |
+| Hacer / remover colaborador (desde Jugadores registrados) | ✅ | ❌ | ❌ |
 | Ver ranking general | ✅ | ✅ | ✅ |
 | Inscribirse a eventos | ✅ | ✅ | ✅ |
 | Ver inscriptos/parejas/partidos/posiciones de un evento | ✅ | ✅ | Solo si pagó |
@@ -500,12 +501,23 @@ Tabla calculada en vivo desde el cliente en función de los matches del evento.
 
 **Ignora partidos sin resultado** (sin `winnerId`).
 
-### 8.9 Gestión de colaboradores (admin only)
+### 8.9 Jugadores registrados / gestión de colaboradores
 
-- Buscar usuario por email exacto
-- Asignar rol `collaborator`
-- Revocar (vuelve a `player`)
-- Pantalla dedicada con lista de collaboradores actuales
+**Pantalla unificada** (`PlayersPage`, `/admin/players`) para staff (admin + colaborador).
+
+**Listado**:
+- Todos los usuarios del sistema ordenados alfabéticamente por `displayName`.
+- Filtra los que tienen email con sufijo `.pdl@gmail.com` (cuentas seed de `/seed.html`).
+- Cada fila muestra: nombre + badge de posición (Drive/Revés/Indistinto), nombre completo (firstName + lastName), email y badge del rol (Jugador / Colaborador / Admin).
+- Búsqueda por nombre, apellido o email.
+
+**Gestión de roles** (solo admin, botón inline al lado del badge del rol):
+- Si es `player` → botón **"Hacer colaborador"** (asigna rol `collaborator`).
+- Si es `collaborator` → botón **"Remover"** (vuelve a `player`).
+- Si es `admin` → no hay botón. Se gestiona manualmente en Firestore.
+- Ambas acciones piden confirmación (`ConfirmDialog` con el nombre del usuario).
+
+Antes había una pantalla separada `/admin/collaborators` (solo admin). Se eliminó y se unificó acá para ahorrarse una pantalla y tener el contexto completo (posición, nombre, email) al decidir.
 
 ### 8.10 Notificaciones Telegram
 

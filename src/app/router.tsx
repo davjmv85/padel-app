@@ -13,7 +13,6 @@ import { AdminEventDetailPage } from '@/features/events/pages/AdminEventDetailPa
 import { EventFormPage } from '@/features/events/pages/EventFormPage';
 import { MyRegistrationsPage } from '@/features/registrations/pages/MyRegistrationsPage';
 import { RankingPage } from '@/features/ranking/pages/RankingPage';
-import { CollaboratorsPage } from '@/features/collaborators/pages/CollaboratorsPage';
 import { PlayersPage } from '@/features/players/pages/PlayersPage';
 
 function HomeRoute() {
@@ -58,18 +57,6 @@ export const router = createBrowserRouter([
       { path: '/admin/events/:eventId', element: <AdminEventDetailPage /> },
       { path: '/admin/events/:eventId/edit', element: <EventFormPage /> },
       { path: '/admin/players', element: <PlayersPage /> },
-    ],
-  },
-
-  // Admin only
-  {
-    element: (
-      <ProtectedRoute allowedRoles={['admin']}>
-        <AppLayout />
-      </ProtectedRoute>
-    ),
-    children: [
-      { path: '/admin/collaborators', element: <CollaboratorsPage /> },
     ],
   },
 ]);

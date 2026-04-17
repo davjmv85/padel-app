@@ -89,8 +89,10 @@ export function AdminEventListPage() {
       setDeleteTarget(null);
       setDeleteConfirmText('');
       refresh();
-    } catch {
-      toast.error('Error al eliminar el evento');
+    } catch (err) {
+      console.error('deleteEventCascade failed:', err);
+      const msg = err instanceof Error ? err.message : 'Error al eliminar el evento';
+      toast.error(`Error al eliminar: ${msg}`);
     } finally {
       setDeleting(false);
     }

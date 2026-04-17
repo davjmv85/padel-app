@@ -3,7 +3,6 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Calendar,
   Trophy,
-  Users,
   UserCircle,
   User,
   LogOut,
@@ -43,11 +42,7 @@ export function AppLayout() {
     { label: 'Mi Perfil', path: '/profile', icon: <User className="h-5 w-5" /> },
   ];
 
-  const adminNav: NavItem[] = appUser?.role === 'admin'
-    ? [...staffNav, { label: 'Colaboradores', path: '/admin/collaborators', icon: <Users className="h-5 w-5" /> }]
-    : staffNav;
-
-  const navItems = isStaff ? adminNav : playerNav;
+  const navItems = isStaff ? staffNav : playerNav;
 
   const handleLogout = async () => {
     await logout();

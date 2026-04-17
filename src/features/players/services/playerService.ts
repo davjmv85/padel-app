@@ -1,4 +1,4 @@
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, doc, getDocs, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { AppUser } from '@/types';
 
@@ -12,4 +12,11 @@ export async function getAllPlayers(): Promise<AppUser[]> {
   const snap = await getDocs(usersRef);
   const users = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppUser));
   return users.filter((u) => !u.email?.toLowerCase().endsWith('.pdl@gmail.com'));
+}
+
+export async function setUserRole(userId: string, role: 'collaborator' | 'player'): Promise<void> {
+  await updateDoc(doc(db, 'users', userId), {
+    role,
+    updatedAt: serverTimestamp(),
+  });
 }
