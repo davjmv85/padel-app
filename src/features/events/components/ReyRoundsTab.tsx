@@ -65,16 +65,8 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
   const allCurrentHaveResult = currentRoundMatches.length > 0 && currentRoundMatches.every(m => !!m.winnerId);
 
 
-  const handleGenerateFirst = async () => {
+  const handleGenerateFirstAuto = async () => {
     if (pairs.length < 2) { toast.error('Agregá al menos 2 parejas'); return; }
-    if (config.seedMode === 'manual') {
-      // prepare manual modal
-      const init: Record<string, [string, string]> = {};
-      for (const c of [...config.courts].sort((a, b) => a.order - b.order)) init[c.id] = ['', ''];
-      setManualAssign(init);
-      setManualOpen(true);
-      return;
-    }
     setBusy(true);
     try {
       const { created, resting } = await generateReyFirstRound(event.id, pairs, config, appUserId);
@@ -85,6 +77,14 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
     } finally {
       setBusy(false);
     }
+  };
+
+  const openManualSeeding = () => {
+    if (pairs.length < 2) { toast.error('Agregá al menos 2 parejas'); return; }
+    const init: Record<string, [string, string]> = {};
+    for (const c of [...config.courts].sort((a, b) => a.order - b.order)) init[c.id] = ['', ''];
+    setManualAssign(init);
+    setManualOpen(true);
   };
 
   const handleManualConfirm = async () => {
@@ -228,9 +228,14 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
       {/* Action bar */}
       {!readOnly && <div className="flex flex-wrap gap-3">
         {rounds.length === 0 && (
-          <Button onClick={handleGenerateFirst} loading={busy} disabled={isFinished || pairs.length < 2}>
-            Generar ronda 1
-          </Button>
+          <>
+            <Button onClick={handleGenerateFirstAuto} loading={busy} disabled={isFinished || pairs.length < 2}>
+              Generar ronda 1 (aleatorio)
+            </Button>
+            <Button variant="secondary" onClick={openManualSeeding} disabled={isFinished || pairs.length < 2 || busy}>
+              Armar ronda 1 manual
+            </Button>
+          </>
         )}
         {rounds.length > 0 && (
           <Button onClick={handleGenerateNext} loading={busy} disabled={isFinished || !allCurrentHaveResult}>

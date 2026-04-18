@@ -69,13 +69,15 @@ export function shuffle<T>(arr: T[]): T[] {
 export function buildInitialRoundAssignment(
   pairIds: string[],
   courts: ReyCourt[],
-  seedMode: 'random' | 'manual',
+  _seedMode: 'random' | 'manual',
   manualAssignment?: Record<string, string[]> // courtId -> pairIds (exactly 2)
 ): { assignments: Map<string, [string, string]>; resting: string[] } {
   const sortedCourts = [...courts].sort((a, b) => a.order - b.order);
   const assignments = new Map<string, [string, string]>();
 
-  if (seedMode === 'manual' && manualAssignment) {
+  // Honor manualAssignment whenever it's provided — its presence is the
+  // explicit signal. seedMode is kept for API compatibility.
+  if (manualAssignment) {
     const used = new Set<string>();
     for (const c of sortedCourts) {
       const pair = manualAssignment[c.id];

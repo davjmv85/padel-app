@@ -43,6 +43,7 @@ export function AdminEventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab | null>('registrations');
   const toggleTab = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
+  const firstLoadRef = useRef(true);
 
   // Modal states
   const [cancelRegId, setCancelRegId] = useState<string | null>(null);
@@ -103,6 +104,22 @@ export function AdminEventDetailPage() {
       setPairs(prs);
       setMatches(mtchs);
       setGroups(grps);
+
+      // On first load for Rey, open the accordion where the user "left off"
+      if (firstLoadRef.current && ev?.tournamentType === 'rey') {
+        if (!ev.reyConfig) {
+          setActiveTab('config');
+        } else {
+          const activeRegs = regs.filter((r) => r.status === 'active');
+          const allPaired =
+            activeRegs.length >= 2 &&
+            activeRegs.every((r) =>
+              prs.some((p) => p.player1Id === r.userId || p.player2Id === r.userId)
+            );
+          setActiveTab(allPaired ? 'rounds' : 'pairs');
+        }
+      }
+      firstLoadRef.current = false;
     } finally {
       setLoading(false);
     }
