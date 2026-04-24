@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, MoreVertical, Eraser } from 'lucide-react';
+import { Hash, Eraser } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -252,12 +252,26 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
           </div>
         </div>
         {!readOnly && (
-          <MatchKebab
-            hasResult={hasResult}
-            onLoadResult={() => openLoadResult(m)}
-            onClearResult={() => setClearResultMatchId(m.id)}
-            disabled={isFinished}
-          />
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              onClick={() => { primeKeyboard(); openLoadResult(m); }}
+              disabled={isFinished}
+              title={hasResult ? 'Editar resultado' : 'Cargar resultado'}
+              className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Hash className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            </button>
+            {hasResult && (
+              <button
+                onClick={() => setClearResultMatchId(m.id)}
+                disabled={isFinished}
+                title="Borrar resultado"
+                className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Eraser className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+              </button>
+            )}
+          </div>
         )}
       </div>
     );
@@ -492,51 +506,6 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
         confirmLabel="Borrar resultado"
         loading={clearResultLoading}
       />
-    </div>
-  );
-}
-
-function MatchKebab({
-  hasResult,
-  onLoadResult,
-  onClearResult,
-  disabled,
-}: {
-  hasResult: boolean;
-  onLoadResult: () => void;
-  onClearResult: () => void;
-  disabled?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative inline-block">
-      <button
-        onClick={() => setOpen(!open)}
-        disabled={disabled}
-        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-      >
-        <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
-          <button
-            onClick={() => { primeKeyboard(); onLoadResult(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-          >
-            <Pencil className="h-4 w-4" />
-            {hasResult ? 'Editar resultado' : 'Cargar resultado'}
-          </button>
-          {hasResult && (
-            <button
-              onClick={() => { onClearResult(); setOpen(false); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-            >
-              <Eraser className="h-4 w-4" />
-              Borrar resultado
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
