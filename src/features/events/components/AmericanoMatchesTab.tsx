@@ -6,7 +6,6 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { generateGroupRound1, generateGroupRound2, generateOctavos, planNextEliminationRound } from '@/utils/americano';
-import { primeKeyboard } from '@/utils/iosKeyboardPrimer';
 import { createMatch, updateMatch, clearMatchResult } from '@/features/matches/services/matchService';
 import { updateAmericanoPhase } from '../services/eventService';
 import { recalculateRankings } from '@/features/ranking/services/rankingService';
@@ -254,7 +253,7 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
         {!readOnly && (
           <div className="flex items-center gap-0.5 shrink-0">
             <button
-              onClick={() => { primeKeyboard(); openLoadResult(m); }}
+              onClick={() => openLoadResult(m)}
               disabled={isFinished}
               title={hasResult ? 'Editar resultado' : 'Cargar resultado'}
               className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
