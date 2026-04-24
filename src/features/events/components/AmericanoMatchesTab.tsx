@@ -1,15 +1,13 @@
 import { useState } from 'react';
-import { Pencil, Trash2, MoreVertical, Eraser } from 'lucide-react';
+import { Pencil, MoreVertical, Eraser } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { generateGroupRound1, generateGroupRound2, generateOctavos, planNextEliminationRound } from '@/utils/americano';
-import { inverseScore, determineWinner } from '@/utils/format';
 import { primeKeyboard } from '@/utils/iosKeyboardPrimer';
-import { createMatch, updateMatch, deleteMatch, clearMatchResult } from '@/features/matches/services/matchService';
+import { createMatch, updateMatch, clearMatchResult } from '@/features/matches/services/matchService';
 import { updateAmericanoPhase } from '../services/eventService';
 import { recalculateRankings } from '@/features/ranking/services/rankingService';
 import type { PadelEvent, EventPair, EventGroup, Match } from '@/types';
@@ -32,12 +30,11 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
   const [busy, setBusy] = useState(false);
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [resultMatchId, setResultMatchId] = useState<string | null>(null);
-  const [resultScoreA, setResultScoreA] = useState('');
+  const [scoreANum, setScoreANum] = useState<number | null>(null);
+  const [scoreBNum, setScoreBNum] = useState<number | null>(null);
   const [resultPairAId, setResultPairAId] = useState('');
   const [resultPairBId, setResultPairBId] = useState('');
   const [resultLoading, setResultLoading] = useState(false);
-  const [deleteMatchId, setDeleteMatchId] = useState<string | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const [clearResultMatchId, setClearResultMatchId] = useState<string | null>(null);
   const [clearResultLoading, setClearResultLoading] = useState(false);
 
@@ -57,7 +54,6 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
   const allRound1HaveResult = round1Matches.length > 0 && round1Matches.every(m => !!m.winnerId);
   const allRound2HaveResult = round2Matches.length > 0 && round2Matches.every(m => !!m.winnerId);
 
-  const isGroupPhaseLocked = phase !== 'groups' && phase !== 'setup';
 
   // --- Handlers ---
 
@@ -186,47 +182,36 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
     setResultMatchId(m.id);
     setResultPairAId(m.pairAId);
     setResultPairBId(m.pairBId);
-    setResultScoreA(m.scoreA || '');
+    if (m.scoreA) {
+      const [a, b] = m.scoreA.split('-').map(s => parseInt(s.trim(), 10));
+      setScoreANum(isNaN(a) ? null : a);
+      setScoreBNum(isNaN(b) ? null : b);
+    } else {
+      setScoreANum(null);
+      setScoreBNum(null);
+    }
     setResultModalOpen(true);
   };
 
   const handleSaveResult = async () => {
-    if (!resultMatchId || !resultScoreA.trim()) return;
-    const winner = determineWinner(resultScoreA);
-    if (!winner) {
-      toast.error('Resultado inválido. Formato: "6-4" o "6-4 6-3"');
-      return;
-    }
+    if (!resultMatchId || scoreANum === null || scoreBNum === null || scoreANum === scoreBNum) return;
+    const scoreA = `${scoreANum}-${scoreBNum}`;
+    const scoreB = `${scoreBNum}-${scoreANum}`;
+    const winnerId = scoreANum > scoreBNum ? resultPairAId : resultPairBId;
     setResultLoading(true);
     try {
-      const winnerId = winner === 'A' ? resultPairAId : resultPairBId;
-      await updateMatch(resultMatchId, resultScoreA, inverseScore(resultScoreA), winnerId);
+      await updateMatch(resultMatchId, scoreA, scoreB, winnerId);
       await recalculateRankings();
       toast.success('Resultado guardado');
       setResultModalOpen(false);
       setResultMatchId(null);
-      setResultScoreA('');
+      setScoreANum(null);
+      setScoreBNum(null);
       await onReload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error');
     } finally {
       setResultLoading(false);
-    }
-  };
-
-  const handleDeleteMatch = async () => {
-    if (!deleteMatchId) return;
-    setDeleteLoading(true);
-    try {
-      await deleteMatch(deleteMatchId);
-      await recalculateRankings();
-      toast.success('Partido eliminado');
-      setDeleteMatchId(null);
-      await onReload();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error');
-    } finally {
-      setDeleteLoading(false);
     }
   };
 
@@ -248,7 +233,7 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
 
   // --- Render ---
 
-  const renderMatch = (m: Match, locked = false) => {
+  const renderMatch = (m: Match) => {
     const hasResult = !!m.winnerId;
     return (
       <div key={m.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg gap-3">
@@ -269,10 +254,8 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
         {!readOnly && (
           <MatchKebab
             hasResult={hasResult}
-            locked={locked}
             onLoadResult={() => openLoadResult(m)}
             onClearResult={() => setClearResultMatchId(m.id)}
-            onDelete={() => setDeleteMatchId(m.id)}
             disabled={isFinished}
           />
         )}
@@ -340,7 +323,7 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
                       <div className="mb-3">
                         <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide">Ronda 1</p>
                         <div className="space-y-2">
-                          {gRound1.map(m => renderMatch(m, isGroupPhaseLocked))}
+                          {gRound1.map(m => renderMatch(m))}
                         </div>
                       </div>
                     )}
@@ -348,7 +331,7 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
                       <div>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide">Ronda 2</p>
                         <div className="space-y-2">
-                          {gRound2.map(m => renderMatch(m, isGroupPhaseLocked))}
+                          {gRound2.map(m => renderMatch(m))}
                         </div>
                       </div>
                     )}
@@ -373,7 +356,6 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
                 const roundMatches = eliminationMatches
                   .filter(m => m.bracketRound === round)
                   .sort((a, b) => (a.bracketPosition || 0) - (b.bracketPosition || 0));
-                const isRoundLocked = round < currentElimRound;
                 const label =
                   roundMatches.length === 1 ? 'Final' :
                   roundMatches.length === 2 ? 'Semifinal' :
@@ -389,20 +371,20 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
                           <div>
                             <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide">Grupo A vs Grupo C</p>
                             <div className="space-y-2">
-                              {roundMatches.filter(m => (m.bracketPosition || 0) <= 4).map(m => renderMatch(m, isRoundLocked))}
+                              {roundMatches.filter(m => (m.bracketPosition || 0) <= 4).map(m => renderMatch(m))}
                             </div>
                           </div>
                           <div>
                             <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide">Grupo B vs Grupo D</p>
                             <div className="space-y-2">
-                              {roundMatches.filter(m => (m.bracketPosition || 0) > 4).map(m => renderMatch(m, isRoundLocked))}
+                              {roundMatches.filter(m => (m.bracketPosition || 0) > 4).map(m => renderMatch(m))}
                             </div>
                           </div>
                         </div>
                       )}
                       {round !== 1 && (
                         <div className="space-y-2">
-                          {roundMatches.map(m => renderMatch(m, isRoundLocked))}
+                          {roundMatches.map(m => renderMatch(m))}
                         </div>
                       )}
                     </CardContent>
@@ -441,52 +423,64 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
 
       {/* Result Modal */}
       <Modal open={resultModalOpen} onClose={() => setResultModalOpen(false)} title="Cargar resultado">
-        <div className="space-y-4">
-          <div className="text-sm">
-            <div className="font-medium">{getPairName(resultPairAId)}</div>
-            <div className="text-gray-400 dark:text-gray-500 text-xs my-1">vs</div>
-            <div className="font-medium">{getPairName(resultPairBId)}</div>
+        <div className="space-y-5">
+          <div>
+            <p className="text-sm font-medium mb-2">{getPairName(resultPairAId)}</p>
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4, 5, 6, 7].map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setScoreANum(n)}
+                  className={`w-10 h-10 rounded-lg text-sm font-bold transition-colors cursor-pointer ${
+                    scoreANum === n
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
-          <Input
-            label="Resultado Pareja A"
-            placeholder="Ej: 6-4 o 6-4 6-3"
-            value={resultScoreA}
-            onChange={e => setResultScoreA(e.target.value)}
-          />
-          <Input
-            label="Resultado Pareja B (calculado)"
-            value={inverseScore(resultScoreA)}
-            readOnly
-            className="bg-gray-50 dark:bg-gray-900 cursor-not-allowed"
-          />
-          {resultScoreA && (() => {
-            const w = determineWinner(resultScoreA);
-            if (!w) return <p className="text-sm text-red-600 dark:text-red-400">Resultado inválido. Formato: "6-4" o "6-4 6-3"</p>;
-            return (
-              <p className="text-sm text-green-700 dark:text-green-400">
-                Ganador: <strong>{getPairName(w === 'A' ? resultPairAId : resultPairBId)}</strong>
-              </p>
-            );
-          })()}
+          <div>
+            <p className="text-sm font-medium mb-2">{getPairName(resultPairBId)}</p>
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4, 5, 6, 7].map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setScoreBNum(n)}
+                  className={`w-10 h-10 rounded-lg text-sm font-bold transition-colors cursor-pointer ${
+                    scoreBNum === n
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          {scoreANum !== null && scoreBNum !== null && (
+            scoreANum === scoreBNum
+              ? <p className="text-sm text-red-600 dark:text-red-400">Los puntajes no pueden ser iguales</p>
+              : <p className="text-sm text-green-700 dark:text-green-400">
+                  Resultado: <strong>{scoreANum}-{scoreBNum}</strong> · Ganador: <strong>{getPairName(scoreANum > scoreBNum ? resultPairAId : resultPairBId)}</strong>
+                </p>
+          )}
           <div className="flex justify-end gap-3">
             <Button variant="secondary" onClick={() => setResultModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveResult} loading={resultLoading} disabled={!resultScoreA || !determineWinner(resultScoreA)}>
+            <Button
+              onClick={handleSaveResult}
+              loading={resultLoading}
+              disabled={scoreANum === null || scoreBNum === null || scoreANum === scoreBNum}
+            >
               Guardar
             </Button>
           </div>
         </div>
       </Modal>
-
-      {/* Delete Match Dialog */}
-      <ConfirmDialog
-        open={!!deleteMatchId}
-        onClose={() => setDeleteMatchId(null)}
-        onConfirm={handleDeleteMatch}
-        title="Eliminar partido"
-        message="Se borra el partido completo (incluido su cruce). El ranking se recalculará."
-        confirmLabel="Eliminar"
-        loading={deleteLoading}
-      />
 
       {/* Clear Result Dialog */}
       <ConfirmDialog
@@ -504,17 +498,13 @@ export function AmericanoMatchesTab({ event, pairs, groups, matches, onReload, a
 
 function MatchKebab({
   hasResult,
-  locked,
   onLoadResult,
   onClearResult,
-  onDelete,
   disabled,
 }: {
   hasResult: boolean;
-  locked: boolean;
   onLoadResult: () => void;
   onClearResult: () => void;
-  onDelete: () => void;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -528,7 +518,7 @@ function MatchKebab({
         <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
           <button
             onClick={() => { primeKeyboard(); onLoadResult(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
@@ -543,15 +533,6 @@ function MatchKebab({
             >
               <Eraser className="h-4 w-4" />
               Borrar resultado
-            </button>
-          )}
-          {!hasResult && !locked && (
-            <button
-              onClick={() => { onDelete(); setOpen(false); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-            >
-              <Trash2 className="h-4 w-4" />
-              Borrar partido
             </button>
           )}
         </div>
