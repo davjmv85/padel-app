@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Calendar, MoreVertical, Settings, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Calendar, MoreVertical, Settings, Pencil, Trash2, Copy } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEvents } from '../hooks/useEvents';
-import { deleteEventCascade } from '../services/eventService';
+import { deleteEventCascade, duplicateEvent } from '../services/eventService';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS, TOURNAMENT_TYPES } from '@/utils/constants';
 import toast from 'react-hot-toast';
 
-function ActionMenu({ eventId, isAdmin, isClosed, onDelete }: { eventId: string; isAdmin: boolean; isClosed: boolean; onDelete: () => void }) {
+function ActionMenu({ eventId, isAdmin, isClosed, onDelete, onDuplicate }: { eventId: string; isAdmin: boolean; isClosed: boolean; onDelete: () => void; onDuplicate: () => void }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -51,6 +51,12 @@ function ActionMenu({ eventId, isAdmin, isClosed, onDelete }: { eventId: string;
               <Pencil className="h-4 w-4" /> Editar
             </button>
           )}
+          <button
+            onClick={() => { onDuplicate(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+          >
+            <Copy className="h-4 w-4" /> Duplicar
+          </button>
           {isAdmin && !isClosed && (
             <button
               onClick={() => { onDelete(); setOpen(false); }}
@@ -69,12 +75,13 @@ function ActionMenu({ eventId, isAdmin, isClosed, onDelete }: { eventId: string;
 }
 
 export function AdminEventListPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, appUser } = useAuth();
   const { events, loading, refresh } = useEvents(true);
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState<string | null>(null);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -101,6 +108,22 @@ export function AdminEventListPage() {
   const closeDelete = () => {
     setDeleteTarget(null);
     setDeleteConfirmText('');
+  };
+
+  const handleDuplicate = async (eventId: string) => {
+    if (!appUser || duplicating) return;
+    setDuplicating(eventId);
+    const tid = toast.loading('Duplicando evento...');
+    try {
+      const newId = await duplicateEvent(eventId, appUser.id, appUser.email, appUser.displayName);
+      toast.success('Evento duplicado', { id: tid });
+      refresh();
+      navigate(`/admin/events/${newId}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al duplicar', { id: tid });
+    } finally {
+      setDuplicating(null);
+    }
   };
 
   if (loading) return <Spinner />;
@@ -154,6 +177,7 @@ export function AdminEventListPage() {
                       isAdmin={isAdmin}
                       isClosed={event.status === 'closed'}
                       onDelete={() => setDeleteTarget({ id: event.id, name: event.name })}
+                      onDuplicate={() => handleDuplicate(event.id)}
                     />
                   </div>
                 </div>

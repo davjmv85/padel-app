@@ -1,4 +1,4 @@
-import type { AmericanoConfig } from '@/types';
+import type { AmericanoConfig, Match, EventGroup } from '@/types';
 import { countSets } from './format';
 
 // --- Validation ---
@@ -6,74 +6,40 @@ import { countSets } from './format';
 export interface ConfigValidation {
   errors: string[];
   warnings: string[];
-  summary: {
-    pairsPerGroup: number[];
-    repechajePool: number;
-    totalElimination: number;
-    bracketSize: number;
-    byes: number;
-  } | null;
+  summary: { groupCount: number; pairsPerGroup: number; totalPairs: number } | null;
 }
 
 export function validateAmericanoConfig(config: AmericanoConfig, totalPairs: number): ConfigValidation {
-  const { minMatches, groupCount, directQualifiers } = config;
   const errors: string[] = [];
   const warnings: string[] = [];
+  const { groupCount } = config;
 
-  if (totalPairs < 2) {
-    errors.push('Se necesitan al menos 2 parejas');
-    return { errors, warnings, summary: null };
-  }
-  if (totalPairs < groupCount * 2) {
-    errors.push(`Se necesitan al menos ${groupCount * 2} parejas para ${groupCount} grupos (hay ${totalPairs})`);
+  if (groupCount !== 4) {
+    errors.push('El formato Americano requiere exactamente 4 grupos');
     return { errors, warnings, summary: null };
   }
 
-  const baseSize = Math.floor(totalPairs / groupCount);
-  const extra = totalPairs % groupCount;
-  const smallestGroup = baseSize;
-  const largestGroup = extra > 0 ? baseSize + 1 : baseSize;
-
-  const pairsPerGroup: number[] = [];
-  for (let i = 0; i < groupCount; i++) {
-    pairsPerGroup.push(i < extra ? largestGroup : smallestGroup);
+  if (totalPairs < 16) {
+    errors.push(`Se necesitan 16 parejas (hay ${totalPairs}). El formato es: 4 grupos de 4 parejas.`);
+    return { errors, warnings, summary: null };
   }
 
-  if (minMatches > smallestGroup - 1) {
-    errors.push(`Con ${smallestGroup} parejas en el grupo más chico, máximo ${smallestGroup - 1} partidos por pareja (pediste ${minMatches})`);
+  if (totalPairs > 16) {
+    warnings.push(`Hay ${totalPairs} parejas. Solo se usarán 16 (4 por grupo).`);
   }
 
-  if (directQualifiers >= smallestGroup) {
-    errors.push(`Clasificados directos (${directQualifiers}) deben ser menos que parejas del grupo más chico (${smallestGroup})`);
+  if (totalPairs % 4 !== 0) {
+    errors.push(`Las parejas deben ser múltiplo de 4 para grupos iguales (hay ${totalPairs})`);
+    return { errors, warnings, summary: null };
   }
 
-  const totalDirect = directQualifiers * groupCount;
-  const repechajePool = totalPairs - totalDirect;
-
-  if (repechajePool <= 0) {
-    errors.push('Todos clasifican directo, no hay repechaje. Bajá los clasificados directos por grupo.');
+  const pairsPerGroup = Math.floor(totalPairs / groupCount);
+  if (pairsPerGroup !== 4) {
+    errors.push(`El formato requiere exactamente 4 parejas por grupo (resultarían ${pairsPerGroup})`);
+    return { errors, warnings, summary: null };
   }
 
-  if (errors.length > 0) return { errors, warnings, summary: null };
-
-  if (repechajePool % 2 !== 0) {
-    warnings.push(`Repechaje con ${repechajePool} parejas (impar): una recibirá bye`);
-  }
-
-  const repechajeWinners = Math.ceil(repechajePool / 2);
-  const totalElimination = totalDirect + repechajeWinners;
-  const bracketSize = nextPowerOf2(totalElimination);
-  const byes = bracketSize - totalElimination;
-
-  if (byes > 0) {
-    warnings.push(`Eliminatoria: ${totalElimination} parejas → cuadro de ${bracketSize} con ${byes} byes`);
-  }
-
-  if (extra > 0) {
-    warnings.push(`Grupos desiguales: ${extra} grupo(s) de ${largestGroup} y ${groupCount - extra} de ${smallestGroup}`);
-  }
-
-  return { errors, warnings, summary: { pairsPerGroup, repechajePool, totalElimination, bracketSize, byes } };
+  return { errors, warnings, summary: { groupCount, pairsPerGroup, totalPairs } };
 }
 
 // --- Group distribution ---
@@ -87,181 +53,39 @@ export function distributeInGroups(pairIds: string[], groupCount: number): strin
   return groups;
 }
 
-// --- Round-robin schedule ---
+// --- Group fixture generation ---
 
-export function generateRoundRobinSchedule(teamIds: string[]): [string, string][][] {
-  const teams = [...teamIds];
-  if (teams.length % 2 !== 0) teams.push('__BYE__');
-  const n = teams.length;
-  const rounds: [string, string][][] = [];
-
-  for (let r = 0; r < n - 1; r++) {
-    const roundMatches: [string, string][] = [];
-    for (let i = 0; i < n / 2; i++) {
-      const home = teams[i];
-      const away = teams[n - 1 - i];
-      if (home !== '__BYE__' && away !== '__BYE__') {
-        roundMatches.push([home, away]);
-      }
-    }
-    rounds.push(roundMatches);
-    const last = teams.pop()!;
-    teams.splice(1, 0, last);
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
-
-  return rounds;
+  return a;
 }
 
-export function generateGroupFixture(pairIds: string[], matchesPerPair: number): [string, string][] {
-  const schedule = generateRoundRobinSchedule(pairIds);
-  const played = new Map<string, number>(pairIds.map(id => [id, 0]));
-  const matches: [string, string][] = [];
-  for (const round of schedule) {
-    if (pairIds.every(id => (played.get(id) ?? 0) >= matchesPerPair)) break;
-    for (const [a, b] of round) {
-      matches.push([a, b]);
-      played.set(a, (played.get(a) ?? 0) + 1);
-      played.set(b, (played.get(b) ?? 0) + 1);
-    }
-  }
-  return matches;
+/**
+ * Round 1: random pairing of 4 pairs → 2 matches (all play once).
+ */
+export function generateGroupRound1(pairIds: string[]): [string, string][] {
+  const s = shuffle(pairIds);
+  return [[s[0], s[1]], [s[2], s[3]]];
 }
 
-// --- Bracket ---
-
-export function nextPowerOf2(n: number): number {
-  let p = 1;
-  while (p < n) p *= 2;
-  return p;
-}
-
-export function generateBracketSeeding(size: number): number[] {
-  let seeds = [1, 2];
-  while (seeds.length < size) {
-    const nextSeeds: number[] = [];
-    const nextSize = seeds.length * 2;
-    for (const seed of seeds) {
-      nextSeeds.push(seed);
-      nextSeeds.push(nextSize + 1 - seed);
-    }
-    seeds = nextSeeds;
-  }
-  return seeds;
-}
-
-export interface BracketSlot {
-  bracketRound: number;
-  bracketPosition: number;
-  pairAId: string | null;
-  pairBId: string | null;
-}
-
-export function generateEliminationBracket(
-  qualifiedPairs: { pairId: string; seed: number }[]
-): BracketSlot[] {
-  const size = nextPowerOf2(qualifiedPairs.length);
-  const seeding = generateBracketSeeding(size);
-
-  const seedMap = new Map<number, string>();
-  const sorted = [...qualifiedPairs].sort((a, b) => a.seed - b.seed);
-  sorted.forEach((p, i) => seedMap.set(i + 1, p.pairId));
-
-  const slots: BracketSlot[] = [];
-  for (let i = 0; i < size; i += 2) {
-    const seedA = seeding[i];
-    const seedB = seeding[i + 1];
-    slots.push({
-      bracketRound: 1,
-      bracketPosition: Math.floor(i / 2) + 1,
-      pairAId: seedMap.get(seedA) || null,
-      pairBId: seedMap.get(seedB) || null,
-    });
-  }
-
-  return slots;
-}
-
-// --- Non-qualified ranking (cross-group) ---
-
-export function rankNonQualifiedPairs(
-  groups: { pairIds: string[]; groupNumber: number }[],
-  groupMatches: Array<{
-    pairAId: string;
-    pairBId: string;
-    scoreA: string;
-    scoreB: string;
-    winnerId: string;
-    groupNumber?: number;
-  }>,
-  directQualifiers: number,
-  pairNameMap: Map<string, string>
-): GroupStanding[] {
-  const allNonQualified: GroupStanding[] = [];
-
-  for (const group of groups) {
-    const gMatches = groupMatches.filter(m => m.groupNumber === group.groupNumber);
-    const standings = calculateGroupStandings(group.pairIds, gMatches, pairNameMap);
-    allNonQualified.push(...standings.slice(directQualifiers));
-  }
-
-  allNonQualified.sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    const gameDiffA = a.gamesWon - a.gamesLost;
-    const gameDiffB = b.gamesWon - b.gamesLost;
-    if (gameDiffB !== gameDiffA) return gameDiffB - gameDiffA;
-    if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
-    return 0;
-  });
-
-  return allNonQualified;
-}
-
-// --- Qualification routes ---
-
-export type QualificationRoute = 'directo' | 'repechaje' | 'bye';
-
-export function getQualificationRoutes(
-  groups: { pairIds: string[]; groupNumber: number }[],
-  groupMatches: Array<{
-    pairAId: string;
-    pairBId: string;
-    scoreA: string;
-    scoreB: string;
-    winnerId: string;
-    groupNumber?: number;
-  }>,
-  repechajeMatches: Array<{ pairAId: string; pairBId: string; winnerId: string }>,
-  directQualifiers: number,
-  pairNameMap: Map<string, string>
-): Map<string, QualificationRoute> {
-  const routes = new Map<string, QualificationRoute>();
-
-  for (const group of groups) {
-    const gMatches = groupMatches.filter(m => m.groupNumber === group.groupNumber);
-    const standings = calculateGroupStandings(group.pairIds, gMatches, pairNameMap);
-    for (let i = 0; i < directQualifiers && i < standings.length; i++) {
-      routes.set(standings[i].pairId, 'directo');
-    }
-  }
-
-  for (const m of repechajeMatches) {
-    if (m.winnerId) {
-      routes.set(m.winnerId, 'repechaje');
-    }
-  }
-
-  const repechajePairIds = new Set(repechajeMatches.flatMap(m => [m.pairAId, m.pairBId]));
-  for (const group of groups) {
-    const gMatches = groupMatches.filter(m => m.groupNumber === group.groupNumber);
-    const standings = calculateGroupStandings(group.pairIds, gMatches, pairNameMap);
-    for (const s of standings.slice(directQualifiers)) {
-      if (!repechajePairIds.has(s.pairId) && !routes.has(s.pairId)) {
-        routes.set(s.pairId, 'bye');
-      }
-    }
-  }
-
-  return routes;
+/**
+ * Round 2: winners play each other (defines 1st/2nd), losers play each other (defines 3rd/4th).
+ * Returns null if round 1 isn't complete.
+ */
+export function generateGroupRound2(
+  round1Matches: Pick<Match, 'pairAId' | 'pairBId' | 'winnerId'>[]
+): [string, string][] | null {
+  if (round1Matches.some(m => !m.winnerId)) return null;
+  const winners = round1Matches.map(m => m.winnerId);
+  const losers = round1Matches.map(m => m.winnerId === m.pairAId ? m.pairBId : m.pairAId);
+  return [
+    [winners[0], winners[1]], // 1st vs 2nd
+    [losers[0], losers[1]],   // 3rd vs 4th
+  ];
 }
 
 // --- Group standings ---
@@ -281,13 +105,7 @@ export interface GroupStanding {
 
 export function calculateGroupStandings(
   groupPairIds: string[],
-  matches: Array<{
-    pairAId: string;
-    pairBId: string;
-    scoreA: string;
-    scoreB: string;
-    winnerId: string;
-  }>,
+  matches: Array<Pick<Match, 'pairAId' | 'pairBId' | 'scoreA' | 'scoreB' | 'winnerId' | 'round'>>,
   pairNameMap: Map<string, string>
 ): GroupStanding[] {
   const stats = new Map<string, GroupStanding>();
@@ -326,13 +144,34 @@ export function calculateGroupStandings(
   }
 
   const standings = Array.from(stats.values());
+
+  // When round 2 is complete, positions are defined by those match results:
+  // winner of the winners-match → 1st, loser → 2nd
+  // winner of the losers-match → 3rd, loser → 4th
+  const round1 = matches.filter(m => m.round === 1);
+  const round2 = matches.filter(m => m.round === 2);
+  if (round2.length === 2 && round2.every(m => !!m.winnerId) && round1.length > 0) {
+    const round1WinnerIds = new Set(round1.map(m => m.winnerId).filter(Boolean) as string[]);
+    const winnersMatch = round2.find(m => round1WinnerIds.has(m.pairAId) && round1WinnerIds.has(m.pairBId));
+    const losersMatch = round2.find(m => m !== winnersMatch);
+    if (winnersMatch?.winnerId && losersMatch?.winnerId) {
+      const pos1 = winnersMatch.winnerId;
+      const pos2 = winnersMatch.pairAId === pos1 ? winnersMatch.pairBId : winnersMatch.pairAId;
+      const pos3 = losersMatch.winnerId;
+      const pos4 = losersMatch.pairAId === pos3 ? losersMatch.pairBId : losersMatch.pairAId;
+      const rankMap = new Map([[pos1, 0], [pos2, 1], [pos3, 2], [pos4, 3]]);
+      standings.sort((a, b) => (rankMap.get(a.pairId) ?? 4) - (rankMap.get(b.pairId) ?? 4));
+      return standings;
+    }
+  }
+
+  // Fallback (round 2 not yet complete): sort by points → game diff → h2h
   standings.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
-    const gameDiffA = a.gamesWon - a.gamesLost;
-    const gameDiffB = b.gamesWon - b.gamesLost;
-    if (gameDiffB !== gameDiffA) return gameDiffB - gameDiffA;
+    const diffA = a.gamesWon - a.gamesLost;
+    const diffB = b.gamesWon - b.gamesLost;
+    if (diffB !== diffA) return diffB - diffA;
     if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
-    // H2H
     const h2h = matches.find(
       m => m.winnerId &&
         ((m.pairAId === a.pairId && m.pairBId === b.pairId) ||
@@ -343,4 +182,74 @@ export function calculateGroupStandings(
   });
 
   return standings;
+}
+
+// --- Octavos generation ---
+
+export interface OctavoSlot {
+  pairAId: string;
+  pairBId: string;
+  bracketPosition: number; // 1-4: A vs C, 5-8: B vs D
+}
+
+/**
+ * Generates octavos from group standings.
+ * Groups 1(A) vs 3(C): A1vC4, A2vC3, A3vC2, A4vC1 → positions 1-4
+ * Groups 2(B) vs 4(D): B1vD4, B2vD3, B3vD2, B4vD1 → positions 5-8
+ */
+export function generateOctavos(
+  groups: EventGroup[],
+  groupMatches: Match[],
+  pairNameMap: Map<string, string>
+): OctavoSlot[] {
+  const sorted = [...groups].sort((a, b) => a.groupNumber - b.groupNumber);
+  const standingsByGroup = sorted.map(g => {
+    const gm = groupMatches.filter(m => m.groupNumber === g.groupNumber);
+    return calculateGroupStandings(g.pairIds, gm, pairNameMap).map(s => s.pairId);
+  });
+
+  // Need exactly 4 groups
+  const [A, B, C, D] = standingsByGroup;
+  if (!A || !B || !C || !D) return [];
+
+  const slots: OctavoSlot[] = [];
+  for (let i = 0; i < 4; i++) {
+    slots.push({ pairAId: A[i], pairBId: C[3 - i], bracketPosition: i + 1 });
+  }
+  for (let i = 0; i < 4; i++) {
+    slots.push({ pairAId: B[i], pairBId: D[3 - i], bracketPosition: i + 5 });
+  }
+  return slots;
+}
+
+// --- Elimination bracket advancement ---
+
+/**
+ * Plans next elimination round pairs from current round results.
+ * - Octavos (round 1) → Cuartos: AC winner[i] vs BD winner[i+4]
+ * - Cuartos+ → sequential pairing: winner[0] vs winner[1], winner[2] vs winner[3], ...
+ */
+export function planNextEliminationRound(
+  currentRoundMatches: Match[],
+  currentRound: number
+): [string, string][] {
+  const sorted = [...currentRoundMatches].sort((a, b) => (a.bracketPosition || 0) - (b.bracketPosition || 0));
+  const winners = sorted.map(m => m.winnerId).filter(Boolean) as string[];
+
+  if (currentRound === 1) {
+    // octavos → cuartos: pair AC with BD
+    const pairs: [string, string][] = [];
+    const half = winners.length / 2;
+    for (let i = 0; i < half; i++) {
+      pairs.push([winners[i], winners[i + half]]);
+    }
+    return pairs;
+  }
+
+  // cuartos → semis → final: sequential pairing
+  const pairs: [string, string][] = [];
+  for (let i = 0; i + 1 < winners.length; i += 2) {
+    pairs.push([winners[i], winners[i + 1]]);
+  }
+  return pairs;
 }

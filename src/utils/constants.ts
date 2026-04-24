@@ -36,7 +36,6 @@ export const TOURNAMENT_TYPES: Record<TournamentType, string> = {
 export const AMERICANO_PHASES: Record<AmericanoPhase, string> = {
   setup: 'Configuración',
   groups: 'Fase de Grupos',
-  repechaje: 'Repechaje',
   elimination: 'Eliminatoria',
   finished: 'Finalizado',
 };

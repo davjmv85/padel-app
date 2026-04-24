@@ -100,7 +100,7 @@ padel-app/
 │   │   ├── constants.ts     → ROLES, EVENT_STATUSES, TOURNAMENT_TYPES, ...
 │   │   ├── format.ts        → formatPrice, inverseScore, countSets, determineWinner
 │   │   ├── validation.ts    → schemas Zod
-│   │   ├── americano.ts     → lógica de fixtures de grupo, repechaje y bracket de eliminación
+│   │   ├── americano.ts     → lógica de fixtures de grupo y bracket de eliminación
 │   │   └── rey.ts           → lógica de rotación de canchas para Rey de Cancha
 │   └── main.tsx             → entry point
 ├── firestore.rules          → security rules por colección
@@ -146,8 +146,8 @@ Evento de pádel (torneo).
 | `description?` | string | opcional |
 | `status` | `'draft' \| 'published' \| 'closed' \| 'finished' \| 'cancelled'` | estado |
 | `tournamentType` | `'liga' \| 'libre' \| 'americano' \| 'rey'` | tipo de torneo (default `liga`, inmutable) |
-| `americanoConfig?` | object | config de americano: `{ minMatches, groupCount, directQualifiers }` |
-| `americanoPhase?` | `'setup' \| 'groups' \| 'repechaje' \| 'elimination' \| 'finished'` | fase actual del americano |
+| `americanoConfig?` | object | config de americano: `{ groupCount: 4 }` (formato fijo: 4 grupos de 4 parejas) |
+| `americanoPhase?` | `'setup' \| 'groups' \| 'elimination' \| 'finished'` | fase actual del americano |
 | `reyConfig?` | object | config de rey: `{ courts: ReyCourt[], winnersCourtId, losersCourtId, seedMode }` |
 | `currentRegistrations` | number | contador desnormalizado (se actualiza con transaction) |
 | `createdBy` | string | userId del creador |
@@ -191,7 +191,7 @@ Partidos entre parejas.
 | `scoreA`, `scoreB` | string | score en formato "6-4 6-3" |
 | `winnerId` | string | pairId del ganador (vacío si aún no hay resultado) |
 | `round?` | number | número de fecha/jornada (o ronda en rey) |
-| `phase?` | `'group' \| 'repechaje' \| 'elimination'` | fase del partido (solo americano) |
+| `phase?` | `'group' \| 'elimination'` | fase del partido (solo americano) |
 | `groupNumber?` | number | número de grupo (solo americano, fase group) |
 | `bracketRound?` | number | ronda del bracket (solo americano, fase elimination) |
 | `bracketPosition?` | number | posición en el bracket (solo americano, fase elimination) |
@@ -378,10 +378,10 @@ match /rankings/{rankingId} {
 **Tipos de torneo**:
 - `liga`: parejas fijas para todo el torneo. Auto-armar genera round-robin de 3 rondas.
 - `libre`: parejas cambian por fecha. Admin arma parejas por fecha, partidos solo se pueden crear dentro de una fecha existente.
-- `americano`: grupos + repechaje + eliminación directa. Parámetros configurables (minMatches, groupCount, directQualifiers). Fases: setup → groups → repechaje → elimination → finished. El admin avanza de fase manualmente.
+- `americano`: 4 grupos de 4 parejas (16 parejas en total). Cada grupo juega 2 rondas internas: en Ronda 1 se sortean los cruces; en Ronda 2 los ganadores juegan entre sí (definen 1° y 2°) y los perdedores entre sí (definen 3° y 4°). Octavos cruzados: Grupo A vs C y Grupo B vs D (1° vs 4°, 2° vs 3°, etc.). Eliminación directa hasta la final. Fases: setup → groups → elimination → finished. El admin avanza de fase manualmente.
 - `rey`: Rey de Cancha. Parejas fijas jugando rondas sucesivas en canchas ordenadas en línea. Ganador sube hacia la "cancha de ganadores", perdedor baja hacia la "cancha de perdedores". La posición en cancha refleja el nivel actual. Los cruces pueden repetirse (es parte del juego). Sin duración fija: se generan rondas mientras el admin quiera.
 
-**Listado admin** con menú kebab por evento: **Gestionar**, **Editar**, **Eliminar** (solo admin).
+**Listado admin** con menú kebab por evento: **Gestionar**, **Editar**, **Duplicar**, **Eliminar** (solo admin). **Duplicar** copia el evento en borrador con sus inscripciones activas (pago reseteado a pendiente) y parejas, sin grupos ni resultados.
 
 **Vista de gestión** con pestañas:
 - **Inscriptos** — lista con nombre, posición, estado de pago, kebab (marcar pago / dar de baja). Valida que no se pueda dar de baja un jugador en pareja.
@@ -397,10 +397,10 @@ match /rankings/{rankingId} {
   - Libre: por jugador individual
   - Orden: puntos → diferencia de sets → diferencia de games
 - **Americano** (pestañas específicas cuando el tipo es `americano`):
-  - **Config** — configurar minMatches, groupCount, directQualifiers (AmericanoConfigTab)
-  - **Grupos** — asignar parejas a grupos, ver composición (AmericanoGroupsTab)
-  - **Partidos** — partidos agrupados por fase: group, repechaje, elimination (AmericanoMatchesTab)
-  - **Posiciones** — standings por grupo y generales (AmericanoStandingsTab)
+  - **Config** — muestra el formato fijo (4 grupos × 4 parejas), barra de progreso de fase, botón de avance de fase y zona de reset (AmericanoConfigTab)
+  - **Grupos** — distribuir parejas en los 4 grupos manual o automáticamente (AmericanoGroupsTab)
+  - **Partidos** — partidos de fase grupal (Ronda 1 y Ronda 2 por grupo) + bracket de eliminación: octavos, cuartos, semifinal y final (AmericanoMatchesTab)
+  - **Posiciones** — standings por grupo con indicación del rival en octavos (AmericanoStandingsTab)
 
 **Header compacto** con badge de estado, breadcrumb para volver a la lista, meta info (tipo, cupo, precio, organizador) y botón de editar.
 
@@ -456,9 +456,11 @@ match /rankings/{rankingId} {
 - **Libre**: genera todos los cruces dentro de cada fecha. Las parejas de fecha 1 juegan entre sí, las de fecha 2 entre sí, etc.
 
 **Auto-armado americano** (`src/utils/americano.ts`):
-- **Fase grupos**: fixture parcial round-robin dentro de cada grupo, garantizando al menos `minMatches` partidos por pareja (se iteran rondas del round-robin hasta que todas las parejas llegan al mínimo — necesario porque con grupos impares una pareja descansa por ronda). Partidos se crean con `phase: 'group'` y `groupNumber`.
-- **Repechaje**: parejas que no clasificaron directamente compiten por los lugares restantes. Partidos con `phase: 'repechaje'`.
-- **Eliminación**: bracket con seeding basado en posiciones de grupo. Partidos con `phase: 'elimination'`, `bracketRound` y `bracketPosition`.
+- **Ronda 1 de grupos**: sorteo aleatorio de 4 parejas por grupo → 2 partidos. Partidos con `phase: 'group'`, `groupNumber` y `round: 1`.
+- **Ronda 2 de grupos** (se habilita cuando Ronda 1 está completa): ganadores entre sí (define 1°/2°), perdedores entre sí (define 3°/4°). Partidos con `phase: 'group'`, `groupNumber` y `round: 2`.
+- **Posiciones por grupo**: determinadas por el resultado de la Ronda 2 (no por diferencia de games). Si la Ronda 2 aún no está completa, se muestra una posición provisoria por puntos.
+- **Octavos** (se generan cuando toda la fase grupal está completa): cruce A vs C (posiciones 1-4 del bracket) y B vs D (posiciones 5-8). A1 vs C4, A2 vs C3, A3 vs C2, A4 vs C1 y simétricamente para B/D. Partidos con `phase: 'elimination'`, `bracketRound: 1`, `bracketPosition` 1-8.
+- **Cuartos → Final**: el ganador de la mitad A/C cruza con el de la mitad B/D en cada ronda (ronda 1 de eliminación), luego emparejamiento secuencial. Cuando queda 1 partido, se marca la fase como `finished`.
 
 **Separación "borrar resultado" vs "borrar partido"**:
 - Partido sin resultado → kebab ofrece *Cargar resultado* / *Borrar partido*.
@@ -468,10 +470,10 @@ match /rankings/{rankingId} {
 **Gating por fase (americano)**:
 - `setup`: se puede editar todo (parejas, grupos, config).
 - `groups` en adelante: parejas congeladas (banner amarillo + botones disabled). Para modificarlas hay que resetear el americano.
-- Partidos de fases anteriores a la vigente: se puede cargar/editar/borrar el resultado, pero NO se puede eliminar el partido entero.
+- Partidos de la fase grupal quedan bloqueados (solo editar/borrar resultado) una vez que se avanza a eliminación.
 
 **Reset americano (zona de peligro en Configuración)**:
-- Borra partidos, grupos y parejas; recalcula ranking; vuelve la fase a `setup`. Conserva la config.
+- Borra partidos, grupos y parejas; recalcula ranking; vuelve la fase a `setup`. Conserva la config (`groupCount: 4`).
 - Confirmación por nombre exacto del evento.
 
 ### 8.7 Posiciones por evento
@@ -648,6 +650,7 @@ El accordion de **Configuración** no se muestra para el jugador (es configuraci
 - **Header mobile sticky** (`sticky top-0 z-30`) en toda la app
 - **Accordion spacing**: `mt-4` por header para que el contenido abierto no quede pegado al siguiente accordion
 - **Record (W-L) junto a la pareja**: en todos los listados (parejas, grupos, rondas, matches) aparece `(victorias-derrotas)` para ese evento, calculado con `computePairRecords` en `utils/format.ts`
+- **SearchSelect**: selector de jugadores y parejas con búsqueda por texto en los modales de crear pareja / crear partido / asignar grupo (reemplaza el `<select>` nativo). Dropdown con portal (`createPortal`) para escapar el overflow del modal en mobile. Opciones ordenadas alfabéticamente.
 - **Fix overflow iOS**: inputs `date`/`time` con `-webkit-appearance: none` + `min-width: 0` para que respeten el ancho del grid en Safari mobile
 - **Listado admin**: muestra el tipo de torneo debajo de fecha/lugar
 - **Sidebar "Gestión Eventos"**: ícono de tuerca (`Settings` de lucide) para diferenciar de "Eventos" del player
@@ -775,8 +778,8 @@ Creado con `@BotFather`. Token y chat ID en `.env`. El bot debe haber recibido a
 - **Americano usa `event_groups` como colección separada**: permite queries por evento y manipulación independiente de la composición de grupos. Los campos `phase`, `groupNumber`, `bracketRound` y `bracketPosition` en matches permiten filtrar y agrupar partidos por fase sin colecciones adicionales.
 - **Rey de Cancha no tiene colección de canchas**: se guardan como array dentro de `reyConfig` en el evento. Es un conjunto chico (<20) y siempre se lee/escribe junto con la config. Los partidos referencian por `courtId` + `courtName` (cache).
 - **Rondas de Rey se derivan de matches**: no hay doc "round" ni "state". Los partidos con `round = N` son la ronda N; el estado (ganadores, perdedores, descansos) se recomputa leyendo los matches. Simplifica mucho: un solo source of truth.
-- **Orden de accordions en americano**: Inscriptos → Configuración → Parejas → Grupos → Posiciones → Partidos (Posiciones antes que Partidos porque es más consultado durante el torneo). Rey: Inscriptos → Configuración → Parejas → Rondas → Posiciones.
-- **Posiciones en americano** muestra solo tablas por grupo + "no clasificados con bye". El bracket eliminatorio y repechaje viven en "Partidos", no en "Posiciones" (evita duplicación).
+- **Orden de accordions en americano**: Inscriptos → Configuración → Parejas → Grupos → Posiciones → Partidos (Posiciones antes que Partidos porque es más consultado durante el torneo). Rey: Inscriptos → Configuración → Parejas → Rondas → Posiciones. En la vista jugador, la pestaña Configuración no se muestra.
+- **Posiciones en americano** muestra tablas por grupo con la posición de cada pareja en octavos. Las posiciones se determinan por el resultado de la Ronda 2 (quién ganó el partido de ganadores y el de perdedores), no por acumulación de games. El bracket eliminatorio vive en "Partidos".
 - **Vista del player = vista del admin con `readOnly`**: en vez de mantener dos implementaciones, se reutilizan los mismos subcomponentes de tabs y se les pasa una prop `readOnly` que oculta barras de acciones, kebabs y zonas de peligro. Reduce duplicación.
 - **Eliminación de evento en cascada**: `deleteEventCascade` borra registrations, pairs, matches, event_groups, waitlist + el evento + recalcula ranking. Evita orphans en las inscripciones del jugador.
 - **`closed` como estado final**: no hay CTA de reopen en UI. Intencional — fuerza pasar por DB para reabrir un torneo cerrado (evita re-aperturas accidentales que mezclen ranking).

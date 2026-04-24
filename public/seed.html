@@ -2,28 +2,65 @@
 <html>
 <head><title>Seed Players</title>
 <style>
-  body { font-family: system-ui; padding: 20px; max-width: 720px; margin: 0 auto; background: #0d2147; color: #e2e8f0; }
+  body { font-family: system-ui; padding: 20px; max-width: 900px; margin: 0 auto; background: #0d2147; color: #e2e8f0; }
   h2 { color: #60a5fa; }
-  button { padding: 12px 24px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  h3 { color: #93c5fd; margin-top: 28px; border-top: 1px solid #1e3a5f; padding-top: 16px; }
+  button { padding: 10px 20px; font-size: 14px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
-  pre { background: #000; color: #4ade80; padding: 16px; border-radius: 8px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; max-height: 60vh; overflow-y: auto; }
-  textarea { width: 100%; padding: 10px; font-size: 13px; border: 1px solid #334155; border-radius: 6px; font-family: monospace; background: #1e293b; color: #e2e8f0; }
+  button.secondary { background: #0f5a2e; }
+  button.small { padding: 6px 12px; font-size: 12px; }
+  pre { background: #000; color: #4ade80; padding: 16px; border-radius: 8px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; max-height: 40vh; overflow-y: auto; }
+  textarea { width: 100%; padding: 10px; font-size: 13px; border: 1px solid #334155; border-radius: 6px; font-family: monospace; background: #1e293b; color: #e2e8f0; box-sizing: border-box; }
   label { font-size: 13px; font-weight: 600; display: block; margin: 12px 0 4px; color: #94a3b8; }
   .hint { font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 4px; }
   select { padding: 8px 12px; font-size: 14px; border-radius: 6px; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; width: 100%; }
+  input[type="text"] { padding: 8px 12px; font-size: 13px; border-radius: 6px; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; width: 100%; box-sizing: border-box; }
   .err { color: #f87171; }
   .warn { color: #fbbf24; }
   .ok { color: #4ade80; }
   .info { color: #93c5fd; }
+
+  /* Users table */
+  #usersSection { margin-top: 8px; }
+  #usersFilter { margin-bottom: 8px; }
+  .users-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .users-table th { background: #1e3a5f; color: #93c5fd; text-align: left; padding: 8px 10px; position: sticky; top: 0; }
+  .users-table td { padding: 7px 10px; border-bottom: 1px solid #1e293b; vertical-align: middle; }
+  .users-table tr:hover td { background: #1e293b; }
+  .users-table tr.selected td { background: #0f3460; }
+  .users-table input[type="checkbox"] { cursor: pointer; width: 15px; height: 15px; }
+  .table-wrap { max-height: 380px; overflow-y: auto; border: 1px solid #1e3a5f; border-radius: 6px; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+  .badge-admin { background: #7c3aed; color: #f5f3ff; }
+  .badge-player { background: #0f5a2e; color: #d1fae5; }
+  .badge-collaborator { background: #92400e; color: #fef3c7; }
+  .sel-info { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+  .actions-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
 </style>
 </head>
 <body>
-<h2>Crear jugadores e inscribirlos al evento</h2>
+<h2>Seed: crear jugadores e inscribirlos</h2>
 
 <p>1. Logueate con tu cuenta admin de Google.<br>
-2. Pegá la lista de jugadores en el formato indicado.<br>
-3. Elegí el evento donde inscribirlos.<br>
-4. Ejecutá.</p>
+2. Elegí el evento donde inscribirlos.<br>
+3. Usá la sección A para crear nuevos jugadores, o la sección B para inscribir usuarios ya registrados.</p>
+
+<div style="margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+  <button id="loginBtn" onclick="doLogin()">1. Login con Google</button>
+  <span id="loginStatus" style="font-size:13px; color:#94a3b8;"></span>
+</div>
+
+<div style="margin-top: 16px;">
+  <label>Evento</label>
+  <select id="eventSelect" disabled>
+    <option>Primero logueate para listar eventos</option>
+  </select>
+</div>
+
+<!-- ──────────────────────────────────────────────
+     SECCIÓN A — Crear jugadores nuevos
+──────────────────────────────────────────────── -->
+<h3>A · Crear jugadores e inscribir</h3>
 
 <label>Lista de jugadores (uno por línea)</label>
 <textarea id="players" rows="26">Martin|Gonzalez|martin.gonzalez.pdl@gmail.com|drive
@@ -50,18 +87,45 @@ Cristian|Cabrera|cristian.cabrera.pdl@gmail.com|indistinto
 Maximiliano|Rios|maximiliano.rios.pdl@gmail.com|drive
 Franco|Dominguez|franco.dominguez.pdl@gmail.com|reves
 Emiliano|Vargas|emiliano.vargas.pdl@gmail.com|indistinto</textarea>
-<p class="hint">Separá cada campo con "|" (pipe). Posicion: drive, reves o indistinto.</p>
+<p class="hint">Campos separados por "|": Nombre | Apellido | Email | Posición (drive, reves, indistinto)</p>
 
-<div>
-  <label>Evento</label>
-  <select id="eventSelect" disabled>
-    <option>Primero logueate para listar eventos</option>
-  </select>
+<div style="margin-top: 12px;">
+  <button id="runBtn" onclick="run()" disabled>Crear e inscribir</button>
 </div>
 
-<div style="margin-top: 20px;">
-  <button id="loginBtn" onclick="doLogin()">1. Login con Google</button>
-  <button id="runBtn" onclick="run()" disabled>2. Crear e inscribir</button>
+<!-- ──────────────────────────────────────────────
+     SECCIÓN B — Usuarios ya registrados en Auth
+──────────────────────────────────────────────── -->
+<h3>B · Inscribir usuarios ya registrados en Firebase</h3>
+
+<div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+  <button id="loadUsersBtn" onclick="loadUsers()" disabled class="secondary">Cargar usuarios de Firebase</button>
+  <span id="usersStatus" style="font-size:13px; color:#94a3b8;"></span>
+</div>
+
+<div id="usersSection" style="display:none; margin-top: 12px;">
+  <input type="text" id="usersFilter" placeholder="Filtrar por nombre, apellido o email..." oninput="filterUsers()" />
+
+  <div class="table-wrap" style="margin-top: 8px;">
+    <table class="users-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" title="Seleccionar todos"></th>
+          <th>Nombre</th>
+          <th>Email</th>
+          <th>Posición</th>
+          <th>Rol</th>
+        </tr>
+      </thead>
+      <tbody id="usersBody"></tbody>
+    </table>
+  </div>
+
+  <div class="sel-info" id="selInfo">0 seleccionados</div>
+
+  <div class="actions-row">
+    <button id="inscribirBtn" onclick="inscribirSeleccionados()" disabled class="secondary">Inscribir seleccionados</button>
+  </div>
 </div>
 
 <pre id="log"></pre>
@@ -69,7 +133,7 @@ Emiliano|Vargas|emiliano.vargas.pdl@gmail.com|indistinto</textarea>
 <script type="module">
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, addDoc, updateDoc, getDoc, collection, query, where, getDocs, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, addDoc, updateDoc, getDoc, collection, query, where, getDocs, orderBy, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyB0c3F_2UxWu0rwpNBIC61mE1EWB6xExNQ",
@@ -84,6 +148,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const logEl = document.getElementById('log');
+
 function print(msg, cls) {
   const line = document.createElement('span');
   if (cls) line.className = cls;
@@ -93,6 +158,7 @@ function print(msg, cls) {
 }
 
 let events = [];
+let allUsers = [];   // { uid, displayName, firstName, lastName, email, position, role }
 
 function randomPassword() {
   return 'pdl' + Math.random().toString(36).slice(-10);
@@ -105,11 +171,14 @@ async function findUserIdByEmail(email) {
   return snap.docs[0].id;
 }
 
+// ─── Login ───────────────────────────────────────────────────────────────────
+
 window.doLogin = async function() {
   try {
     const provider = new GoogleAuthProvider();
     const cred = await signInWithPopup(auth, provider);
-    print('OK Login: ' + cred.user.email, 'ok');
+    document.getElementById('loginStatus').textContent = '✓ ' + cred.user.email;
+    document.getElementById('loginBtn').disabled = true;
 
     const snap = await getDocs(collection(db, 'events'));
     events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -126,13 +195,203 @@ window.doLogin = async function() {
       });
       select.disabled = false;
       document.getElementById('runBtn').disabled = false;
-      print('OK Eventos cargados: ' + events.length, 'ok');
+      document.getElementById('loadUsersBtn').disabled = false;
+      print('OK Login. Eventos cargados: ' + events.length, 'ok');
     }
-    document.getElementById('loginBtn').disabled = true;
   } catch (e) {
     print('ERROR login: ' + e.message, 'err');
   }
+};
+
+// ─── Sección B: cargar usuarios ───────────────────────────────────────────────
+
+window.loadUsers = async function() {
+  const btn = document.getElementById('loadUsersBtn');
+  const status = document.getElementById('usersStatus');
+  btn.disabled = true;
+  status.textContent = 'Cargando…';
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), orderBy('lastName')));
+    allUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    status.textContent = allUsers.length + ' usuarios encontrados';
+    renderUsersTable(allUsers);
+    document.getElementById('usersSection').style.display = 'block';
+    print('Usuarios cargados: ' + allUsers.length, 'info');
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+    print('ERROR cargando usuarios: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('usersBody');
+  tbody.innerHTML = '';
+  for (const u of users) {
+    const tr = document.createElement('tr');
+    tr.dataset.uid = u.uid;
+    const roleBadge = `<span class="badge badge-${u.role || 'player'}">${u.role || 'player'}</span>`;
+    tr.innerHTML = `
+      <td><input type="checkbox" class="user-cb" data-uid="${u.uid}" onchange="onCheckChange()"></td>
+      <td>${esc(u.displayName || (u.firstName + ' ' + u.lastName))}</td>
+      <td>${esc(u.email || '')}</td>
+      <td>${esc(u.position || '—')}</td>
+      <td>${roleBadge}</td>
+    `;
+    tr.querySelector('.user-cb').addEventListener('change', () => {
+      tr.classList.toggle('selected', tr.querySelector('.user-cb').checked);
+    });
+    tbody.appendChild(tr);
+  }
+  updateSelInfo();
 }
+
+window.filterUsers = function() {
+  const q = document.getElementById('usersFilter').value.toLowerCase();
+  const filtered = q
+    ? allUsers.filter(u =>
+        (u.displayName || '').toLowerCase().includes(q) ||
+        (u.firstName || '').toLowerCase().includes(q) ||
+        (u.lastName || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q)
+      )
+    : allUsers;
+  renderUsersTable(filtered);
+};
+
+window.toggleSelectAll = function(master) {
+  document.querySelectorAll('.user-cb').forEach(cb => {
+    cb.checked = master.checked;
+    cb.closest('tr').classList.toggle('selected', master.checked);
+  });
+  updateSelInfo();
+};
+
+window.onCheckChange = function() {
+  updateSelInfo();
+};
+
+function updateSelInfo() {
+  const count = document.querySelectorAll('.user-cb:checked').length;
+  document.getElementById('selInfo').textContent = count + ' seleccionado' + (count !== 1 ? 's' : '');
+  document.getElementById('inscribirBtn').disabled = count === 0;
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getSelectedUsers() {
+  const checked = document.querySelectorAll('.user-cb:checked');
+  const uids = Array.from(checked).map(cb => cb.dataset.uid);
+  return allUsers.filter(u => uids.includes(u.uid));
+}
+
+window.inscribirSeleccionados = async function() {
+  const selected = getSelectedUsers();
+  if (selected.length === 0) { alert('Seleccioná al menos un usuario'); return; }
+
+  const eventId = document.getElementById('eventSelect').value;
+  const event = events.find(e => e.id === eventId);
+  if (!event) { alert('Elegí un evento'); return; }
+
+  document.getElementById('inscribirBtn').disabled = true;
+  print('', '');
+  print('Inscribir seleccionados → evento: ' + event.name, 'info');
+  print('Usuarios seleccionados: ' + selected.length, 'info');
+
+  // Re-fetch fresh capacity
+  let currentCount = event.currentRegistrations || 0;
+  let maxCapacity = event.maxCapacity || 0;
+  try {
+    const evSnap = await getDoc(doc(db, 'events', eventId));
+    if (evSnap.exists()) {
+      const d = evSnap.data();
+      currentCount = d.currentRegistrations || 0;
+      maxCapacity = d.maxCapacity || 0;
+    }
+  } catch (e) {
+    print('⚠ No pude leer el cupo actualizado: ' + e.message, 'warn');
+  }
+
+  const remaining = Math.max(0, maxCapacity - currentCount);
+  print('Cupo: ' + currentCount + '/' + maxCapacity + ' — libres: ' + remaining, 'info');
+  if (remaining === 0) {
+    print('✗ Evento sin cupo.', 'err');
+    document.getElementById('inscribirBtn').disabled = false;
+    return;
+  }
+  print('---', '');
+
+  const now = Timestamp.now();
+  let registeredCount = 0;
+
+  for (const user of selected) {
+    if (registeredCount >= remaining) {
+      print('⚠ Cupo alcanzado. No procesado: ' + (user.displayName || user.email), 'warn');
+      continue;
+    }
+
+    const displayName = user.displayName || (user.firstName + ' ' + user.lastName);
+    print('>>> ' + displayName + ' (' + user.email + ')', 'info');
+
+    // Check duplicate
+    try {
+      const dupSnap = await getDocs(query(
+        collection(db, 'registrations'),
+        where('eventId', '==', eventId),
+        where('userId', '==', user.uid),
+        where('status', '==', 'active')
+      ));
+      if (!dupSnap.empty) {
+        print('  ! Ya estaba inscripto, saltando', 'warn');
+        continue;
+      }
+    } catch (e) {
+      print('  ⚠ No pude verificar duplicados: ' + e.message, 'warn');
+    }
+
+    try {
+      const regRef = await addDoc(collection(db, 'registrations'), {
+        eventId,
+        userId: user.uid,
+        userName: displayName,
+        userPosition: user.position || 'indistinto',
+        paymentStatus: 'pending',
+        status: 'active',
+        createdAt: now,
+        updatedAt: now,
+      });
+      registeredCount++;
+      print('  ✓ INSCRIPTO (reg id: ' + regRef.id + ')', 'ok');
+    } catch (e) {
+      print('  ✗ Inscripcion error: ' + e.message, 'err');
+    }
+  }
+
+  if (registeredCount > 0) {
+    try {
+      const newCount = currentCount + registeredCount;
+      await updateDoc(doc(db, 'events', eventId), {
+        currentRegistrations: newCount,
+        updatedAt: now,
+      });
+      print('', '');
+      print('Contador del evento actualizado: ' + newCount + '/' + maxCapacity, 'ok');
+    } catch (e) {
+      print('✗ Error actualizando contador: ' + e.message, 'err');
+    }
+  }
+
+  print('', '');
+  print('================================', 'info');
+  print('Inscriptos nuevos: ' + registeredCount, 'ok');
+  print('================================', 'info');
+  document.getElementById('inscribirBtn').disabled = false;
+};
+
+// ─── Sección A: crear jugadores nuevos ────────────────────────────────────────
 
 window.run = async function() {
   const raw = document.getElementById('players').value.trim();
@@ -164,7 +423,6 @@ window.run = async function() {
   print('Evento: ' + event.name + ' (id: ' + event.id + ')', 'info');
   print('Jugadores a procesar: ' + players.length, 'info');
 
-  // Re-fetch fresh capacity from Firestore
   let currentCount = event.currentRegistrations || 0;
   let maxCapacity = event.maxCapacity || 0;
   try {
@@ -206,7 +464,6 @@ window.run = async function() {
 
     let uid = null;
 
-    // 1. Try to create auth user via secondary app
     const secondary = initializeApp(firebaseConfig, 'secondary-' + Date.now());
     const secondaryAuth = getAuth(secondary);
 
@@ -236,7 +493,6 @@ window.run = async function() {
     await signOut(secondaryAuth).catch(() => {});
     await deleteApp(secondary).catch(() => {});
 
-    // 2. Create/update user doc in Firestore
     try {
       await setDoc(doc(db, 'users', uid), {
         email: player.email,
@@ -255,16 +511,14 @@ window.run = async function() {
       continue;
     }
 
-    // 3. Check if already registered for this event
     let alreadyRegistered = false;
     try {
-      const dupQuery = query(
+      const dupSnap = await getDocs(query(
         collection(db, 'registrations'),
         where('eventId', '==', eventId),
         where('userId', '==', uid),
         where('status', '==', 'active')
-      );
-      const dupSnap = await getDocs(dupQuery);
+      ));
       if (!dupSnap.empty) {
         print('  ! Ya estaba inscripto, saltando', 'warn');
         alreadyRegistered = true;
@@ -275,7 +529,6 @@ window.run = async function() {
 
     if (alreadyRegistered) continue;
 
-    // 4. Register to event
     try {
       const regRef = await addDoc(collection(db, 'registrations'), {
         eventId,
@@ -294,7 +547,6 @@ window.run = async function() {
     }
   }
 
-  // 5. Update event counter
   if (registeredCount > 0) {
     try {
       const newCount = currentCount + registeredCount;
@@ -314,7 +566,7 @@ window.run = async function() {
   print('Jugadores nuevos inscriptos: ' + registeredCount, 'ok');
   print('================================', 'info');
   document.getElementById('runBtn').disabled = false;
-}
+};
 </script>
 </body>
 </html>

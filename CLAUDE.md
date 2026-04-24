@@ -89,7 +89,7 @@ firebase.json             → multi-site hosting config
 ## Modelos Firestore (resumen)
 
 - `users/{uid}` — perfil del usuario. Campos: email, displayName, firstName, lastName, **nickname?**, position, role (admin/collaborator/player), adminCreated?
-- `events/{id}` — torneo. Campos: name, location, date, time, maxCapacity, price, status (draft/published/closed/finished/cancelled), **tournamentType (liga/libre/americano)**, currentRegistrations, createdBy, createdByEmail, createdByName, **americanoConfig?** (minMatches, groupCount, directQualifiers), **americanoPhase?** (setup/groups/repechaje/elimination/finished)
+- `events/{id}` — torneo. Campos: name, location, date, time, maxCapacity, price, status (draft/published/closed/finished/cancelled), **tournamentType (liga/libre/americano/rey)**, currentRegistrations, createdBy, createdByEmail, createdByName, **americanoConfig?** (minMatches, groupCount, directQualifiers), **americanoPhase?** (setup/groups/repechaje/elimination/finished), **reyConfig?** (courts[], winnersCourtId, losersCourtId, seedMode)
 - `registrations/{id}` — colección global. Campos: eventId, userId, userName (cache), userPosition (cache), paymentStatus (pending/paid/cancelled), status (active/cancelled)
 - `event_pairs/{id}` — parejas. Campos: eventId, player1Id/Name, player2Id/Name, **round?** (solo libre)
 - `matches/{id}` — partidos. Campos: eventId, pairAId, pairBId, scoreA, scoreB, winnerId, **round?**, **phase?** ('group'|'repechaje'|'elimination'), **groupNumber?**, **bracketRound?**, **bracketPosition?**
@@ -110,6 +110,7 @@ Un staff (admin/collaborator) puede ALSO jugar como player.
 - **`liga`**: parejas fijas para todo el torneo. Auto-armar genera round-robin de 3 rondas. Posiciones por pareja.
 - **`libre`**: parejas cambian por fecha. Cada `event_pair` tiene `round`. Auto-armar parejas evita repetir combinaciones de fechas anteriores. Auto-armar partidos genera todos los cruces dentro de cada fecha. Posiciones por jugador individual.
 - **`americano`**: grupos + repechaje + eliminación directa. Parámetros configurables: `minMatches` (mínimo de partidos por pareja), `groupCount`, `directQualifiers` (clasificados directos por grupo). Fases: `setup → groups → repechaje → elimination → finished`. El admin avanza de fase manualmente.
+- **`rey`**: Rey de Cancha. Múltiples canchas con orden numérico. Cada ronda, ganadores suben un escalón hacia `winnersCourtId` y perdedores bajan un escalón hacia `losersCourtId`. Las parejas que no entran en una ronda descansan y se priorizan en la siguiente. Configuración (`ReyConfig`): lista de `ReyCourt[]` (id, name, order), `winnersCourtId`, `losersCourtId`, `seedMode` (`random` | `manual`). Lógica en `utils/rey.ts`, servicio en `features/events/services/reyService.ts`, componentes: `ReyConfigTab.tsx`, `ReyRoundsTab.tsx`, `ReyInfoButton.tsx`.
 
 ## Convenciones del proyecto
 

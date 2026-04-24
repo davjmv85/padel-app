@@ -33,13 +33,11 @@ export type PaymentStatus = 'pending' | 'paid' | 'cancelled';
 export type RegistrationStatus = 'active' | 'cancelled';
 
 // Americano tournament
-export type AmericanoPhase = 'setup' | 'groups' | 'repechaje' | 'elimination' | 'finished';
-export type MatchPhase = 'group' | 'repechaje' | 'elimination';
+export type AmericanoPhase = 'setup' | 'groups' | 'elimination' | 'finished';
+export type MatchPhase = 'group' | 'elimination';
 
 export interface AmericanoConfig {
-  minMatches: number;
-  groupCount: number;
-  directQualifiers: number;
+  groupCount: number; // always 4 for the cross-group bracket format
 }
 
 // User

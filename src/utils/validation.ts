@@ -45,7 +45,5 @@ export const eventSchema = z.object({
 });
 
 export const americanoConfigSchema = z.object({
-  minMatches: z.coerce.number().min(2, 'Mínimo 2 partidos'),
-  groupCount: z.coerce.number().min(1, 'Mínimo 1 grupo'),
-  directQualifiers: z.coerce.number().min(1, 'Mínimo 1 clasificado directo por grupo'),
+  groupCount: z.coerce.number().min(4, 'El formato requiere 4 grupos').max(4, 'El formato requiere 4 grupos'),
 });

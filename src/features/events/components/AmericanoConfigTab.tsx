@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { AMERICANO_PHASES } from '@/utils/constants';
-import { validateAmericanoConfig, type ConfigValidation } from '@/utils/americano';
 import type { PadelEvent, Registration, EventPair, AmericanoConfig, AmericanoPhase } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -22,17 +21,23 @@ interface Props {
 }
 
 export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, onAdvancePhase, onReset, isFinished, readOnly = false }: Props) {
-  const config = event.americanoConfig;
   const phase = event.americanoPhase || 'setup';
-
-  const [minMatches, setMinMatches] = useState(config?.minMatches?.toString() || '3');
-  const [groupCount, setGroupCount] = useState(config?.groupCount?.toString() || '2');
-  const [directQualifiers, setDirectQualifiers] = useState(config?.directQualifiers?.toString() || '1');
   const [saving, setSaving] = useState(false);
-  const [validation, setValidation] = useState<ConfigValidation | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+
+  const totalPairs = pairs.length;
+  const activePlayers = registrations.filter(r => r.status === 'active').length;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSaveConfig({ groupCount: 4 });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleResetConfirm = async () => {
     if (resetConfirmText.trim() !== event.name.trim()) {
@@ -51,46 +56,13 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
     }
   };
 
-  const totalPairs = pairs.length;
-  const activePlayers = registrations.filter(r => r.status === 'active').length;
-
-  const estimatedPairs = totalPairs > 0 ? totalPairs : Math.floor(activePlayers / 2);
-
-  useEffect(() => {
-    const mm = parseInt(minMatches) || 0;
-    const gc = parseInt(groupCount) || 0;
-    const dq = parseInt(directQualifiers) || 0;
-    if (mm >= 2 && gc >= 1 && dq >= 1) {
-      if (estimatedPairs >= 2) {
-        setValidation(validateAmericanoConfig({ minMatches: mm, groupCount: gc, directQualifiers: dq }, estimatedPairs));
-      } else {
-        setValidation({ errors: [], warnings: ['Todavía no hay suficientes parejas/jugadores para validar'], summary: null });
-      }
-    } else {
-      setValidation(null);
-    }
-  }, [minMatches, groupCount, directQualifiers, estimatedPairs]);
-
-  const handleSave = async () => {
-    const mm = parseInt(minMatches);
-    const gc = parseInt(groupCount);
-    const dq = parseInt(directQualifiers);
-    if (isNaN(mm) || isNaN(gc) || isNaN(dq)) return;
-    if (validation?.errors.length) return;
-    setSaving(true);
-    try {
-      await onSaveConfig({ minMatches: mm, groupCount: gc, directQualifiers: dq });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const canAdvanceToGroups = phase === 'setup' && config && totalPairs >= 4 && !validation?.errors.length;
-
-  const inputClass = 'block w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed';
+  const canAdvanceToGroups = phase === 'setup' && event.americanoConfig && totalPairs >= 16;
+  const pairError = totalPairs < 16 ? `Faltan ${16 - totalPairs} parejas para completar los 4 grupos de 4.` : null;
+  const configSaved = !!event.americanoConfig;
 
   return (
     <div className="space-y-4">
+      {/* Phase indicator */}
       <Card>
         <CardContent className="py-4">
           <div className="flex items-center justify-between mb-4">
@@ -117,89 +89,40 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
         </CardContent>
       </Card>
 
+      {/* Format summary */}
       <Card>
         <CardContent className="py-4">
-          <h3 className="font-semibold mb-4">Parámetros del torneo</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Partidos mínimos por pareja
-              </label>
-              <input
-                type="number"
-                min="2"
-                max="20"
-                value={minMatches}
-                onChange={(e) => setMinMatches(e.target.value)}
-                disabled={phase !== 'setup' || isFinished || readOnly}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Cantidad de grupos
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="16"
-                value={groupCount}
-                onChange={(e) => setGroupCount(e.target.value)}
-                disabled={phase !== 'setup' || isFinished || readOnly}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Clasificados directos por grupo
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={directQualifiers}
-                onChange={(e) => setDirectQualifiers(e.target.value)}
-                disabled={phase !== 'setup' || isFinished || readOnly}
-                className={inputClass}
-              />
-            </div>
+          <h3 className="font-semibold mb-3">Formato del torneo</h3>
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+            <p><span className="font-medium">Grupos:</span> 4 grupos de 4 parejas (16 parejas en total)</p>
+            <p><span className="font-medium">Fase de grupos:</span> Ronda 1 aleatoria + Ronda 2 (ganadores vs ganadores, perdedores vs perdedores)</p>
+            <p><span className="font-medium">Eliminatoria:</span> Octavos (A vs C, B vs D) → Cuartos → Semifinal → Final</p>
+            <p><span className="font-medium">Partidos por pareja:</span> mínimo 3 (2 en grupos + octavos)</p>
           </div>
 
-          {validation && (
-            <div className="mt-4 space-y-2">
-              {validation.errors.map((e, i) => (
-                <p key={i} className="text-sm text-red-600 dark:text-red-400">✗ {e}</p>
-              ))}
-              {validation.warnings.map((w, i) => (
-                <p key={i} className="text-sm text-yellow-600 dark:text-yellow-400">⚠ {w}</p>
-              ))}
-              {validation.errors.length === 0 && validation.summary && (
-                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm space-y-1">
-                  <p><strong>Resumen:</strong></p>
-                  <p>Grupos: {validation.summary.pairsPerGroup.map((n, i) => `Grupo ${i + 1}: ${n} parejas`).join(' · ')}</p>
-                  <p>Partidos de grupo por pareja: {parseInt(minMatches) || 2}</p>
-                  <p>Repechaje: {validation.summary.repechajePool} parejas</p>
-                  <p>Cuadro eliminatorio: {validation.summary.totalElimination} parejas → {validation.summary.bracketSize} slots</p>
-                </div>
-              )}
-            </div>
+          {pairError && (
+            <p className="mt-3 text-sm text-red-600 dark:text-red-400">✗ {pairError}</p>
+          )}
+          {!pairError && totalPairs > 0 && (
+            <p className="mt-3 text-sm text-green-600 dark:text-green-400">✓ {totalPairs} parejas listas para 4 grupos de 4</p>
           )}
 
           {phase === 'setup' && !readOnly && (
-            <div className="flex gap-3 mt-4">
-              <Button onClick={handleSave} loading={saving} disabled={isFinished || !validation || validation.errors.length > 0}>
-                Guardar configuración
+            <div className="mt-4">
+              <Button onClick={handleSave} loading={saving} disabled={isFinished}>
+                {configSaved ? 'Confirmar configuración' : 'Guardar configuración'}
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Advance to groups */}
       {canAdvanceToGroups && !readOnly && (
         <Card>
           <CardContent className="py-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Cuando las parejas estén armadas y los grupos distribuidos, avanzá a la fase de grupos para generar el fixture.
+              Las 16 parejas están armadas y distribuidas en grupos. Avanzá a la fase de grupos para generar el fixture.
             </p>
             <Button onClick={() => onAdvancePhase('groups')} disabled={isFinished}>
               Avanzar a Fase de Grupos
@@ -208,6 +131,7 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
         </Card>
       )}
 
+      {/* Danger zone */}
       {!isFinished && !readOnly && (phase !== 'setup' || pairs.length > 0) && (
         <Card className="border border-red-200 dark:border-red-900/50">
           <CardContent className="py-4">
@@ -215,7 +139,7 @@ export function AmericanoConfigTab({ event, registrations, pairs, onSaveConfig, 
               <AlertTriangle className="h-4 w-4" /> Zona de peligro
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Reset completo: borra parejas, grupos, partidos y resultados; recalcula el ranking global y vuelve la fase a <strong>setup</strong>. La configuración se conserva.
+              Reset completo: borra parejas, grupos, partidos y resultados; recalcula el ranking global y vuelve la fase a <strong>setup</strong>.
             </p>
             <Button variant="danger" onClick={() => setResetOpen(true)}>
               Resetear americano

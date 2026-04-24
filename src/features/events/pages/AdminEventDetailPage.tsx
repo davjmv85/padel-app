@@ -15,7 +15,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
-import { Select } from '@/components/ui/Select';
+import { SearchSelect } from '@/components/ui/SearchSelect';
 import { Input } from '@/components/ui/Input';
 import { EVENT_STATUSES, EVENT_STATUS_COLORS, PAYMENT_STATUSES, PAYMENT_STATUS_COLORS, PLAYER_POSITIONS, TOURNAMENT_TYPES, AMERICANO_PHASES } from '@/utils/constants';
 import { formatPrice, inverseScore, determineWinner, countSets, computePairRecords, pairRecordLabel } from '@/utils/format';
@@ -105,18 +105,22 @@ export function AdminEventDetailPage() {
       setMatches(mtchs);
       setGroups(grps);
 
-      // On first load for Rey, open the accordion where the user "left off"
-      if (firstLoadRef.current && ev?.tournamentType === 'rey') {
-        if (!ev.reyConfig) {
-          setActiveTab('config');
-        } else {
-          const activeRegs = regs.filter((r) => r.status === 'active');
-          const allPaired =
-            activeRegs.length >= 2 &&
-            activeRegs.every((r) =>
-              prs.some((p) => p.player1Id === r.userId || p.player2Id === r.userId)
-            );
-          setActiveTab(allPaired ? 'rounds' : 'pairs');
+      // On first load, open the accordion where the user "left off"
+      if (firstLoadRef.current) {
+        if (ev?.tournamentType === 'rey') {
+          if (!ev.reyConfig) {
+            setActiveTab('config');
+          } else {
+            const activeRegs = regs.filter((r) => r.status === 'active');
+            const allPaired =
+              activeRegs.length >= 2 &&
+              activeRegs.every((r) =>
+                prs.some((p) => p.player1Id === r.userId || p.player2Id === r.userId)
+              );
+            setActiveTab(allPaired ? 'rounds' : 'pairs');
+          }
+        } else if (ev?.tournamentType === 'americano' && ev.americanoConfig) {
+          setActiveTab('pairs');
         }
       }
       firstLoadRef.current = false;
@@ -850,8 +854,10 @@ export function AdminEventDetailPage() {
   const availablePlayers = registrations.filter(r => !usedPlayerIds.has(r.userId));
 
   const playerOptions = [
-    { value: '', label: 'Seleccionar jugador' },
-    ...availablePlayers.map(r => ({ value: r.userId, label: `${r.userName} (${PLAYER_POSITIONS[r.userPosition]})` })),
+    ...availablePlayers
+      .slice()
+      .sort((a, b) => a.userName.localeCompare(b.userName, 'es'))
+      .map(r => ({ value: r.userId, label: `${r.userName} (${PLAYER_POSITIONS[r.userPosition]})` })),
   ];
 
   // For libre with a selected fecha, only show pairs from that fecha
@@ -859,14 +865,16 @@ export function AdminEventDetailPage() {
     ? pairs.filter(p => p.round === matchFormRound)
     : pairs;
   const pairOptions = [
-    { value: '', label: 'Seleccionar pareja' },
-    ...pairsForMatchModal.map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` })),
+    ...pairsForMatchModal
+      .slice()
+      .sort((a, b) => `${a.player1Name} / ${a.player2Name}`.localeCompare(`${b.player1Name} / ${b.player2Name}`, 'es'))
+      .map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` })),
   ];
 
   const isFinished = event.status === 'finished' || event.status === 'closed';
 
   return (
-    <div>
+    <div className="text-sm">
       <Link to="/admin/events" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mb-4">
         <ChevronLeft className="h-4 w-4" />
         Gestión Eventos
@@ -920,7 +928,10 @@ export function AdminEventDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {registrations.map(reg => (
+                    {registrations
+                      .slice()
+                      .sort((a, b) => a.userName.localeCompare(b.userName, 'es'))
+                      .map(reg => (
                       <tr key={reg.id} className="border-b border-gray-100 dark:border-gray-700">
                         <td className="py-2.5">{reg.userName}</td>
                         <td className="py-2.5">{PLAYER_POSITIONS[reg.userPosition]}</td>
@@ -997,11 +1008,11 @@ export function AdminEventDetailPage() {
                         return (
                           <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                             <div>
-                              <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Pareja {idx + 1}:</span>{' '}
-                              <span className="font-medium">{pair.player1Name}</span>
+                              <span className="text-xs font-medium text-gray-400 dark:text-gray-500">P{idx + 1}:</span>{' '}
+                              <span className="font-medium text-xs sm:text-sm">{pair.player1Name}</span>
                               {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
                               <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
-                              <span className="font-medium">{pair.player2Name}</span>
+                              <span className="font-medium text-xs sm:text-sm">{pair.player2Name}</span>
                               {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
                           <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pair.id)})</span>
                             </div>
@@ -1084,11 +1095,11 @@ export function AdminEventDetailPage() {
                     return (
                       <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div>
-                          <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Pareja {idx + 1}:</span>{' '}
-                          <span className="font-medium">{pair.player1Name}</span>
+                          <span className="text-xs font-medium text-gray-400 dark:text-gray-500">P{idx + 1}:</span>{' '}
+                          <span className="font-medium text-xs sm:text-sm">{pair.player1Name}</span>
                           {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
                           <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
-                          <span className="font-medium">{pair.player2Name}</span>
+                          <span className="font-medium text-xs sm:text-sm">{pair.player2Name}</span>
                           {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
                           <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pair.id)})</span>
                         </div>
@@ -1224,11 +1235,11 @@ export function AdminEventDetailPage() {
                     return (
                       <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div>
-                          <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Pareja {idx + 1}:</span>{' '}
-                          <span className="font-medium">{pair.player1Name}</span>
+                          <span className="text-xs font-medium text-gray-400 dark:text-gray-500">P{idx + 1}:</span>{' '}
+                          <span className="font-medium text-xs sm:text-sm">{pair.player1Name}</span>
                           {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
                           <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
-                          <span className="font-medium">{pair.player2Name}</span>
+                          <span className="font-medium text-xs sm:text-sm">{pair.player2Name}</span>
                           {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
                           <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pair.id)})</span>
                         </div>
@@ -1302,10 +1313,10 @@ export function AdminEventDetailPage() {
                                   <div key={pair.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                     <div>
                                       <span className="text-sm font-medium text-gray-400 dark:text-gray-500">{idx + 1}:</span>{' '}
-                                      <span className="font-medium">{pair.player1Name}</span>
+                                      <span className="font-medium text-xs sm:text-sm">{pair.player1Name}</span>
                                       {p1Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p1Pos]})</span>}
                                       <span className="text-gray-400 dark:text-gray-500 mx-2">/</span>
-                                      <span className="font-medium">{pair.player2Name}</span>
+                                      <span className="font-medium text-xs sm:text-sm">{pair.player2Name}</span>
                                       {p2Pos && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">({PLAYER_POSITIONS[p2Pos]})</span>}
                           <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">({pairRecordLabel(pairRecords, pair.id)})</span>
                                     </div>
@@ -1553,8 +1564,8 @@ export function AdminEventDetailPage() {
       {/* Create Pair Modal */}
       <Modal open={pairModalOpen} onClose={() => { setPairModalOpen(false); setPairFormRound(null); }} title={isLibre && pairFormRound ? `Agregar pareja a Fecha ${pairFormRound}` : 'Crear pareja'}>
         <div className="space-y-4">
-          <Select label="Jugador 1" options={playerOptions} value={pairPlayer1} onChange={e => setPairPlayer1(e.target.value)} />
-          <Select label="Jugador 2" options={playerOptions.filter(o => o.value !== pairPlayer1)} value={pairPlayer2} onChange={e => setPairPlayer2(e.target.value)} />
+          <SearchSelect label="Jugador 1" options={playerOptions} value={pairPlayer1} onChange={setPairPlayer1} placeholder="Buscar jugador..." />
+          <SearchSelect label="Jugador 2" options={playerOptions.filter(o => o.value !== pairPlayer1)} value={pairPlayer2} onChange={setPairPlayer2} placeholder="Buscar jugador..." />
           <div className="flex justify-end gap-3">
             <Button variant="secondary" onClick={() => { setPairModalOpen(false); setPairFormRound(null); }}>Cancelar</Button>
             <Button onClick={handleCreatePair} loading={pairLoading} disabled={!pairPlayer1 || !pairPlayer2}>Crear</Button>
@@ -1565,8 +1576,8 @@ export function AdminEventDetailPage() {
       {/* Create Match Modal (only pairs) */}
       <Modal open={matchModalOpen} onClose={() => { setMatchModalOpen(false); resetMatchForm(); }} title={isLibre && matchFormRound ? `Cargar partido - Fecha ${matchFormRound}` : 'Cargar partido'}>
         <div className="space-y-4">
-          <Select label="Pareja A" options={pairOptions} value={matchPairA} onChange={e => setMatchPairA(e.target.value)} />
-          <Select label="Pareja B" options={pairOptions.filter(o => o.value !== matchPairA)} value={matchPairB} onChange={e => setMatchPairB(e.target.value)} />
+          <SearchSelect label="Pareja A" options={pairOptions} value={matchPairA} onChange={setMatchPairA} placeholder="Buscar pareja..." />
+          <SearchSelect label="Pareja B" options={pairOptions.filter(o => o.value !== matchPairA)} value={matchPairB} onChange={setMatchPairB} placeholder="Buscar pareja..." />
           <div className="flex justify-end gap-3">
             <Button variant="secondary" onClick={() => { setMatchModalOpen(false); resetMatchForm(); }}>Cancelar</Button>
             <Button onClick={handleCreateMatch} loading={matchLoading} disabled={!matchPairA || !matchPairB}>

@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Select } from '@/components/ui/Select';
+import { SearchSelect } from '@/components/ui/SearchSelect';
 import { distributeInGroups } from '@/utils/americano';
 import { PLAYER_POSITIONS } from '@/utils/constants';
 import { computePairRecords, pairRecordLabel } from '@/utils/format';
@@ -131,14 +132,15 @@ export function AmericanoGroupsTab({ event, pairs, groups, matches, registration
             </div>
             {unassignedPairs.length > 0 && config && (
               <div className="mt-4 flex flex-wrap gap-3 items-end">
-                <Select
+                <SearchSelect
                   label="Pareja"
-                  options={[
-                    { value: '', label: 'Seleccionar pareja' },
-                    ...unassignedPairs.map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` })),
-                  ]}
+                  options={unassignedPairs
+                    .slice()
+                    .sort((a, b) => `${a.player1Name} / ${a.player2Name}`.localeCompare(`${b.player1Name} / ${b.player2Name}`, 'es'))
+                    .map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` }))}
                   value={manualPair}
-                  onChange={e => setManualPair(e.target.value)}
+                  onChange={setManualPair}
+                  placeholder="Buscar pareja..."
                 />
                 <Select
                   label="Grupo"

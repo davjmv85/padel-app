@@ -17,7 +17,7 @@ Organizar torneos de pádel hoy es un caos:
 
 ## La solución
 
-**Padel App** es una plataforma web que centraliza toda la organización de eventos de pádel en un solo lugar.
+**Px4Dx3L Hub** es una plataforma web que centraliza toda la organización de eventos de pádel en un solo lugar.
 
 Una herramienta simple, rápida y profesional para organizadores y jugadores.
 
@@ -139,7 +139,6 @@ Una herramienta simple, rápida y profesional para organizadores y jugadores.
 - **Notificaciones por email** (cupo liberado, recordatorios de evento)
 - **App móvil nativa** (iOS/Android) compartiendo la misma base
 - **Categorías de jugadores** (principiante, intermedio, avanzado)
-- **Fases de torneo** (grupos, eliminación directa, consolación)
 - **Sistema de puntos avanzado** (bonus por torneo, por fase, por racha)
 - **Integración de pagos online** (MercadoPago, transferencias)
 - **Estadísticas avanzadas** por jugador (% victorias, mejor compañero, rendimiento por cancha)
@@ -167,12 +166,14 @@ Una herramienta simple, rápida y profesional para organizadores y jugadores.
 - Armado de parejas
 - Carga de resultados
 - Ranking automático
+- Múltiples formatos de torneo: liga, libre, Americano (grupos + rondas + bracket), Rey de Cancha
+- Duplicación de eventos con inscripciones y parejas
 - Gestión de colaboradores
 - Modo claro/oscuro
 - Seguridad por roles
 - Deploy en producción
 
-**Live en:** https://padel-events.web.app
+**Live en:** https://padel-hub.web.app
 
 ---
 

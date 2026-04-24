@@ -106,6 +106,93 @@ export async function updateReyConfig(eventId: string, config: import('@/types')
   });
 }
 
+export async function duplicateEvent(
+  sourceEventId: string,
+  userId: string,
+  userEmail: string,
+  userName: string
+): Promise<string> {
+  const sourceSnap = await getDoc(doc(db, 'events', sourceEventId));
+  if (!sourceSnap.exists()) throw new Error('Evento no encontrado');
+  const source = sourceSnap.data() as PadelEvent;
+
+  // New event: same config, draft, payment reset
+  const newEventData: Record<string, unknown> = {
+    name: `Copia de ${source.name}`,
+    location: source.location,
+    date: source.date,
+    time: source.time,
+    maxCapacity: source.maxCapacity,
+    price: source.price,
+    description: source.description ?? '',
+    status: 'draft',
+    tournamentType: source.tournamentType,
+    currentRegistrations: 0,
+    createdBy: userId,
+    createdByEmail: userEmail,
+    createdByName: userName,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  if (source.americanoConfig) {
+    newEventData.americanoConfig = source.americanoConfig;
+    newEventData.americanoPhase = 'setup';
+  }
+  if (source.reyConfig) {
+    newEventData.reyConfig = source.reyConfig;
+  }
+
+  const newEventRef = await addDoc(eventsRef, newEventData);
+  const newEventId = newEventRef.id;
+
+  // Copy active registrations (payment reset to pending)
+  const regsSnap = await getDocs(
+    query(collection(db, 'registrations'), where('eventId', '==', sourceEventId), where('status', '==', 'active'))
+  );
+  let regCount = 0;
+  for (const regDoc of regsSnap.docs) {
+    const r = regDoc.data();
+    await addDoc(collection(db, 'registrations'), {
+      eventId: newEventId,
+      userId: r.userId,
+      userName: r.userName,
+      userPosition: r.userPosition,
+      paymentStatus: 'pending',
+      status: 'active',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    regCount++;
+  }
+
+  // Copy pairs
+  const pairsSnap = await getDocs(
+    query(collection(db, 'event_pairs'), where('eventId', '==', sourceEventId))
+  );
+  for (const pairDoc of pairsSnap.docs) {
+    const p = pairDoc.data();
+    const pairData: Record<string, unknown> = {
+      eventId: newEventId,
+      player1Id: p.player1Id,
+      player1Name: p.player1Name,
+      player2Id: p.player2Id,
+      player2Name: p.player2Name,
+      createdAt: serverTimestamp(),
+    };
+    if (p.round != null) pairData.round = p.round;
+    await addDoc(collection(db, 'event_pairs'), pairData);
+  }
+
+  if (regCount > 0) {
+    await updateDoc(doc(db, 'events', newEventId), {
+      currentRegistrations: regCount,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  return newEventId;
+}
+
 export async function deleteEvent(eventId: string): Promise<void> {
   await deleteDoc(doc(db, 'events', eventId));
 }

@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { SearchSelect } from '@/components/ui/SearchSelect';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { inverseScore, determineWinner, computePairRecords, pairRecordLabel } from '@/utils/format';
@@ -309,15 +309,23 @@ export function ReyRoundsTab({ event, pairs, matches, appUserId, onReload, isFin
             <div key={c.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
               <p className="text-sm font-medium mb-2">{c.name}</p>
               <div className="grid grid-cols-2 gap-2">
-                <Select
-                  options={[{ value: '', label: '—' }, ...pairs.map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` }))]}
+                <SearchSelect
+                  options={pairs
+                    .slice()
+                    .sort((a, b) => `${a.player1Name} / ${a.player2Name}`.localeCompare(`${b.player1Name} / ${b.player2Name}`, 'es'))
+                    .map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` }))}
                   value={manualAssign[c.id]?.[0] || ''}
-                  onChange={e => setManualAssign(prev => ({ ...prev, [c.id]: [e.target.value, prev[c.id]?.[1] || ''] }))}
+                  onChange={v => setManualAssign(prev => ({ ...prev, [c.id]: [v, prev[c.id]?.[1] || ''] }))}
+                  placeholder="Pareja..."
                 />
-                <Select
-                  options={[{ value: '', label: '—' }, ...pairs.map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` }))]}
+                <SearchSelect
+                  options={pairs
+                    .slice()
+                    .sort((a, b) => `${a.player1Name} / ${a.player2Name}`.localeCompare(`${b.player1Name} / ${b.player2Name}`, 'es'))
+                    .map(p => ({ value: p.id, label: `${p.player1Name} / ${p.player2Name}` }))}
                   value={manualAssign[c.id]?.[1] || ''}
-                  onChange={e => setManualAssign(prev => ({ ...prev, [c.id]: [prev[c.id]?.[0] || '', e.target.value] }))}
+                  onChange={v => setManualAssign(prev => ({ ...prev, [c.id]: [prev[c.id]?.[0] || '', v] }))}
+                  placeholder="Pareja..."
                 />
               </div>
             </div>
