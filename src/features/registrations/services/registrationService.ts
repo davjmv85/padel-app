@@ -175,6 +175,19 @@ export async function updatePaymentStatus(registrationId: string, status: 'pendi
   });
 }
 
+export async function bulkUpdatePaymentStatus(registrationIds: string[], status: 'pending' | 'paid', markedBy: string): Promise<void> {
+  await Promise.all(
+    registrationIds.map(id =>
+      updateDoc(doc(db, 'registrations', id), {
+        paymentStatus: status,
+        paidMarkedBy: status === 'paid' ? markedBy : null,
+        paidAt: status === 'paid' ? serverTimestamp() : null,
+        updatedAt: serverTimestamp(),
+      })
+    )
+  );
+}
+
 export async function deleteEventRegistrations(eventId: string): Promise<void> {
   const q = query(registrationsRef, where('eventId', '==', eventId));
   const snap = await getDocs(q);

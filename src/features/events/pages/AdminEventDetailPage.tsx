@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Pencil, MoreVertical, Check, Clock, UserMinus, Trash2, ChevronLeft, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getEvent, updateAmericanoConfig, updateAmericanoPhase, updateReyConfig } from '../services/eventService';
-import { getEventRegistrations, cancelRegistration, updatePaymentStatus } from '@/features/registrations/services/registrationService';
+import { getEventRegistrations, cancelRegistration, updatePaymentStatus, bulkUpdatePaymentStatus } from '@/features/registrations/services/registrationService';
 import { getEventPairs, createPair, deletePair, deleteEventPairs } from '@/features/pairs/services/pairService';
 import { getEventMatches, createMatch, updateMatch, deleteMatch, deleteEventMatches } from '@/features/matches/services/matchService';
 import { getEventGroups, deleteEventGroups } from '../services/groupService';
@@ -44,6 +44,10 @@ export function AdminEventDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab | null>('registrations');
   const toggleTab = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
   const firstLoadRef = useRef(true);
+
+  // Bulk payment selection
+  const [selectedRegIds, setSelectedRegIds] = useState<Set<string>>(new Set());
+  const [bulkPaymentLoading, setBulkPaymentLoading] = useState(false);
 
   // Modal states
   const [cancelRegId, setCancelRegId] = useState<string | null>(null);
@@ -237,6 +241,18 @@ export function AdminEventDetailPage() {
       toast.success('Estado de pago actualizado');
       await loadData();
     } catch { toast.error('Error al actualizar pago'); }
+  };
+
+  const handleBulkPayment = async (status: 'pending' | 'paid') => {
+    if (!appUser || selectedRegIds.size === 0) return;
+    setBulkPaymentLoading(true);
+    try {
+      await bulkUpdatePaymentStatus(Array.from(selectedRegIds), status, appUser.id);
+      toast.success(`${selectedRegIds.size} inscripciones actualizadas`);
+      setSelectedRegIds(new Set());
+      await loadData();
+    } catch { toast.error('Error al actualizar pagos'); }
+    finally { setBulkPaymentLoading(false); }
   };
 
   const handleCreatePair = async () => {
@@ -916,44 +932,104 @@ export function AdminEventDetailPage() {
           <CardContent className="py-4">
             {registrations.length === 0 ? (
               <EmptyState title="Sin inscriptos" description="Todavía no hay jugadores inscriptos en este evento" />
-            ) : (
-              <div className="">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Jugador</th>
-                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Posición</th>
-                      <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Pago</th>
-                      <th className="text-right py-2 font-medium text-gray-500 dark:text-gray-400 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {registrations
-                      .slice()
-                      .sort((a, b) => a.userName.localeCompare(b.userName, 'es'))
-                      .map(reg => (
-                      <tr key={reg.id} className="border-b border-gray-100 dark:border-gray-700">
-                        <td className="py-2.5">{reg.userName}</td>
-                        <td className="py-2.5">{PLAYER_POSITIONS[reg.userPosition]}</td>
-                        <td className="py-2.5">
-                          <Badge className={PAYMENT_STATUS_COLORS[reg.paymentStatus]}>
-                            {PAYMENT_STATUSES[reg.paymentStatus]}
-                          </Badge>
-                        </td>
-                        <td className="py-2.5 text-right">
-                          <RegistrationKebab
-                            paymentStatus={reg.paymentStatus}
-                            onTogglePayment={() => handlePayment(reg.id, reg.paymentStatus === 'paid' ? 'pending' : 'paid')}
-                            onUnregister={() => setCancelRegId(reg.id)}
-                            disabled={isFinished}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            ) : (() => {
+                const sortedRegs = registrations.slice().sort((a, b) => a.userName.localeCompare(b.userName, 'es'));
+                const allSelected = sortedRegs.length > 0 && sortedRegs.every(r => selectedRegIds.has(r.id));
+                const someSelected = selectedRegIds.size > 0;
+                const toggleAll = () => {
+                  if (allSelected) {
+                    setSelectedRegIds(new Set());
+                  } else {
+                    setSelectedRegIds(new Set(sortedRegs.map(r => r.id)));
+                  }
+                };
+                const toggleOne = (id: string) => {
+                  setSelectedRegIds(prev => {
+                    const next = new Set(prev);
+                    next.has(id) ? next.delete(id) : next.add(id);
+                    return next;
+                  });
+                };
+                return (
+                  <div>
+                    {someSelected && !isFinished && (
+                      <div className="flex items-center gap-2 mb-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <span className="text-sm text-gray-600 dark:text-gray-400 flex-1">
+                          {selectedRegIds.size} seleccionado{selectedRegIds.size !== 1 ? 's' : ''}
+                        </span>
+                        <button
+                          onClick={() => handleBulkPayment('paid')}
+                          disabled={bulkPaymentLoading}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 hover:bg-green-700 text-white cursor-pointer disabled:opacity-50"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Marcar pagados
+                        </button>
+                        <button
+                          onClick={() => handleBulkPayment('pending')}
+                          disabled={bulkPaymentLoading}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 cursor-pointer disabled:opacity-50"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                          Marcar pendientes
+                        </button>
+                      </div>
+                    )}
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                          {!isFinished && (
+                            <th className="py-2 w-8">
+                              <input
+                                type="checkbox"
+                                checked={allSelected}
+                                onChange={toggleAll}
+                                className="cursor-pointer"
+                              />
+                            </th>
+                          )}
+                          <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Jugador</th>
+                          <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Posición</th>
+                          <th className="text-left py-2 font-medium text-gray-500 dark:text-gray-400">Pago</th>
+                          <th className="text-right py-2 font-medium text-gray-500 dark:text-gray-400 w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedRegs.map(reg => (
+                          <tr key={reg.id} className="border-b border-gray-100 dark:border-gray-700">
+                            {!isFinished && (
+                              <td className="py-2.5">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRegIds.has(reg.id)}
+                                  onChange={() => toggleOne(reg.id)}
+                                  className="cursor-pointer"
+                                />
+                              </td>
+                            )}
+                            <td className="py-2.5">{reg.userName}</td>
+                            <td className="py-2.5">{PLAYER_POSITIONS[reg.userPosition]}</td>
+                            <td className="py-2.5">
+                              <Badge className={PAYMENT_STATUS_COLORS[reg.paymentStatus]}>
+                                {PAYMENT_STATUSES[reg.paymentStatus]}
+                              </Badge>
+                            </td>
+                            <td className="py-2.5 text-right">
+                              <RegistrationKebab
+                                paymentStatus={reg.paymentStatus}
+                                onTogglePayment={() => handlePayment(reg.id, reg.paymentStatus === 'paid' ? 'pending' : 'paid')}
+                                onUnregister={() => setCancelRegId(reg.id)}
+                                disabled={isFinished}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()
+            }
           </CardContent>
         </Card>
       )}
